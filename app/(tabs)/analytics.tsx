@@ -1,177 +1,262 @@
 import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
-import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons';
+import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { BarChart } from 'react-native-gifted-charts';
 
-const { width } = Dimensions.get('window');
+// ─── Chart sizing ─────────────────────────────────────
+// Bar charts size themselves by barWidth + spacing, not by a width prop,
+// so they never overflow. We still pass width as a cap.
+const BAR_WIDTH = 28;
+const BAR_SPACING = 10;
+const NUM_BARS = 7;
+// Y-axis label column width (gifted-charts renders this outside the plot width)
+const Y_AXIS_W = 36;
 
-// Mock data for the charts
-const days = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+// ─── Data types (backend-ready) ───────────────────────
+export type BarPoint = {
+  value: number;
+  label: string;
+};
 
-const ChartCard = ({ title, dateRange, children, legend }: { 
-  title: string, 
-  dateRange: string, 
-  children: React.ReactNode,
-  legend?: { color: string, label: string }[] 
-}) => (
-  <View className="bg-[#1E293B] rounded-[24px] p-6 mb-6 border border-slate-700/50 shadow-lg">
-    <View className="flex-row justify-between items-start mb-4">
-      <View>
-        <Text className="text-white text-xl font-bold">{title}</Text>
-        <Text className="text-slate-400 text-sm mt-1">{dateRange}</Text>
+export type BarDataset = {
+  color: string;
+  label: string;
+  data: BarPoint[];
+};
+
+// ─── Mock data ────────────────────────────────────────
+const xLabels = ['M', 'T', 'W', 'Th', 'F', 'S', 'Su'];
+
+// Transaction Activity – 3 categories, rendered as stacked bars
+const transactionByDay: { food: number; transport: number; bills: number }[] = [
+  { food: 6000,  transport: 10000, bills: 3000 },
+  { food: 11000, transport: 6000,  bills: 4000 },
+  { food: 8000,  transport: 12000, bills: 3600 },
+  { food: 13000, transport: 5000,  bills: 7000 },
+  { food: 16000, transport: 9000,  bills: 4400 },
+  { food: 10000, transport: 14000, bills: 2000 },
+  { food: 7000,  transport: 11000, bills: 5600 },
+];
+
+// gifted-charts stackData shape
+const transactionStackData = transactionByDay.map((day, i) => ({
+  label: xLabels[i],
+  stacks: [
+    { value: day.food,      color: '#FDBA74' },
+    { value: day.transport, color: '#F87171' },
+    { value: day.bills,     color: '#34D399' },
+  ],
+}));
+
+const savingsData: BarPoint[] = [
+  { value: 5000,  label: 'M'  },
+  { value: 7000,  label: 'T'  },
+  { value: 9000,  label: 'W'  },
+  { value: 7600,  label: 'Th' },
+  { value: 11000, label: 'F'  },
+  { value: 14000, label: 'S'  },
+  { value: 17000, label: 'Su' },
+];
+
+const expensesData: BarPoint[] = [
+  { value: 12000, label: 'M'  },
+  { value: 22000, label: 'T'  },
+  { value: 16800, label: 'W'  },
+  { value: 24000, label: 'Th' },
+  { value: 14000, label: 'F'  },
+  { value: 19200, label: 'S'  },
+  { value: 28800, label: 'Su' },
+];
+
+// ─── Shared chart style props ─────────────────────────
+const commonBarProps = {
+  barWidth: BAR_WIDTH,
+  spacing: BAR_SPACING,
+  initialSpacing: 10,
+  endSpacing: 6,
+  noOfSections: 4,
+  rulesColor: 'rgba(148,163,184,0.15)',
+  rulesType: 'solid' as const,
+  yAxisColor: 'transparent',
+  xAxisColor: 'transparent',
+  yAxisTextStyle: { color: '#94A3B8', fontSize: 9 },
+  xAxisLabelTextStyle: { color: '#94A3B8', fontSize: 9 },
+  yAxisLabelWidth: Y_AXIS_W,
+  hideDataPoints: true,
+  height: 130,
+  backgroundColor: 'transparent',
+  disableScroll: true,
+  isAnimated: true,
+};
+
+// ─── Simple bar card ──────────────────────────────────
+interface SimpleBarCardProps {
+  title: string;
+  dateRange: string;
+  data: BarPoint[];
+  barColor: string;
+  maxValue: number;
+  yAxisLabelSuffix?: string;
+  legend: { color: string; label: string }[];
+}
+
+function SimpleBarCard({
+  title,
+  dateRange,
+  data,
+  barColor,
+  maxValue,
+  yAxisLabelSuffix = 'K',
+  legend,
+}: SimpleBarCardProps) {
+  const barData = data.map((pt) => ({
+    value: pt.value,
+    label: pt.label,
+    frontColor: barColor,
+  }));
+
+  return (
+    <View className="mb-5 pt-6 pb-5 rounded-[30px]" style={{ backgroundColor: '#334155' }}>
+      <Text className="text-white text-xl font-bold text-center px-6">{title}</Text>
+      <Text className="text-slate-300 text-sm text-center mt-0.5 px-6">{dateRange}</Text>
+
+      <View className="mt-4 px-3">
+        <BarChart
+          {...commonBarProps}
+          data={barData}
+          maxValue={maxValue}
+          yAxisLabelSuffix={yAxisLabelSuffix}
+          barBorderRadius={6}
+        />
       </View>
-      <TouchableOpacity className="p-2 bg-slate-800/50 rounded-full">
-        <Ionicons name="ellipsis-horizontal" size={20} color="#94A3B8" />
-      </TouchableOpacity>
-    </View>
-    
-    <View className="h-40 w-full mb-4">
-      {children}
-    </View>
 
-    {legend && (
-      <View className="flex-row flex-wrap gap-x-4 gap-y-2 mt-2">
-        {legend.map((item, index) => (
-          <View key={index} className="flex-row items-center">
-            <View className={`w-3 h-3 rounded-full mr-2`} style={{ backgroundColor: item.color }} />
+      <View className="flex-row justify-center gap-x-5 mt-3 flex-wrap px-6">
+        {legend.map((item, i) => (
+          <View key={i} className="flex-row items-center gap-x-1.5">
+            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: item.color }} />
             <Text className="text-slate-300 text-xs">{item.label}</Text>
           </View>
         ))}
       </View>
-    )}
-  </View>
-);
+    </View>
+  );
+}
 
-// Simple mock chart component
-const MockLineChart = ({ colors, multi }: { colors: string[], multi?: boolean }) => {
+// ─── Stacked bar card ─────────────────────────────────
+interface StackedBarCardProps {
+  title: string;
+  dateRange: string;
+  stackData: typeof transactionStackData;
+  maxValue: number;
+  yAxisLabelSuffix?: string;
+  legend: { color: string; label: string }[];
+}
+
+function StackedBarCard({
+  title,
+  dateRange,
+  stackData,
+  maxValue,
+  yAxisLabelSuffix = 'K',
+  legend,
+}: StackedBarCardProps) {
   return (
-    <View className="flex-1 justify-end">
-      {/* Y-Axis Labels */}
-      <View className="absolute left-0 top-0 bottom-6 justify-between items-start">
-        <Text className="text-slate-500 text-[10px]">10K</Text>
-        <Text className="text-slate-500 text-[10px]">5K</Text>
-        <Text className="text-slate-500 text-[10px]">0</Text>
+    <View className="mb-5 pt-6 pb-5 rounded-[30px]" style={{ backgroundColor: '#334155' }}>
+      <Text className="text-white text-xl font-bold text-center px-6">{title}</Text>
+      <Text className="text-slate-300 text-sm text-center mt-0.5 px-6">{dateRange}</Text>
+
+      <View className="mt-4 px-3">
+        <BarChart
+          {...commonBarProps}
+          stackData={stackData}
+          maxValue={maxValue}
+          yAxisLabelSuffix={yAxisLabelSuffix}
+          roundedTop
+        />
       </View>
-      
-      {/* Chart Area */}
-      <View className="flex-1 ml-8 border-l border-b border-slate-700/50 relative">
-        {/* Mock Lines/Bars */}
-        <View className="flex-row items-end justify-between px-2 h-full">
-          {days.map((day, i) => (
-            <View key={i} className="items-center flex-1">
-              <View className="flex-row gap-x-0.5 items-end h-full w-full justify-center">
-                {colors.map((color, ci) => {
-                  const height = multi ? (20 + Math.random() * 60) : (40 + Math.random() * 50);
-                  return (
-                    <View 
-                      key={ci} 
-                      className="w-1.5 rounded-t-sm" 
-                      style={{ 
-                        backgroundColor: color, 
-                        height: `${height}%`,
-                        opacity: multi ? 0.8 : 1
-                      }} 
-                    />
-                  );
-                })}
-              </View>
-              <Text className="text-slate-500 text-[10px] mt-2 absolute -bottom-6">{day}</Text>
-            </View>
-          ))}
-        </View>
-        
-        {/* Horizontal Grid lines */}
-        <View className="absolute left-0 right-0 top-[33%] border-t border-slate-700/20 w-full" />
-        <View className="absolute left-0 right-0 top-[66%] border-t border-slate-700/20 w-full" />
+
+      <View className="flex-row justify-center gap-x-5 mt-3 flex-wrap px-6">
+        {legend.map((item, i) => (
+          <View key={i} className="flex-row items-center gap-x-1.5">
+            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: item.color }} />
+            <Text className="text-slate-300 text-xs">{item.label}</Text>
+          </View>
+        ))}
       </View>
     </View>
   );
-};
+}
 
+// ─── Main Screen ──────────────────────────────────────
 export default function AnalyticsScreen() {
   const router = useRouter();
 
   return (
-    <SafeAreaView className="flex-1 bg-[#0F172A]" edges={['top']}>
-      {/* Header */}
-      <View className="flex-row items-center justify-between px-6 py-4">
-        <TouchableOpacity 
-          onPress={() => router.back()}
-          className="w-10 h-10 items-center justify-center rounded-full bg-slate-800/50"
+    <View className="flex-1 bg-[#1E293B]">
+      <SafeAreaView className="flex-1" edges={['top']}>
+        <ScrollView
+          className="flex-1"
+          contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 120, paddingTop: 8 }}
+          showsVerticalScrollIndicator={false}
         >
-          <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
-        </TouchableOpacity>
-        <Text className="text-white text-2xl font-bold">Analytics</Text>
-        <TouchableOpacity className="w-10 h-10 items-center justify-center rounded-full bg-slate-800/50">
-          <Ionicons name="notifications-outline" size={24} color="#FFFFFF" />
-        </TouchableOpacity>
-      </View>
+          {/* Transaction Activity – stacked bars */}
+          <StackedBarCard
+            title="Transaction Activity"
+            dateRange="February 2 - February 8"
+            stackData={transactionStackData}
+            maxValue={30000}
+            yAxisLabelSuffix="K"
+            legend={[
+              { color: '#FDBA74', label: 'Food' },
+              { color: '#F87171', label: 'Transportation' },
+              { color: '#34D399', label: 'Bills' },
+            ]}
+          />
 
-      <ScrollView 
-        className="flex-1"
-        contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 100, paddingTop: 10 }}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Activity Summary Cards */}
-        <ChartCard 
-          title="Transaction Activity" 
-          dateRange="Feb 2 - Feb 8"
-          legend={[
-            { color: '#FB923C', label: 'Food' },
-            { color: '#F87171', label: 'Transport' },
-            { color: '#34D399', label: 'Bills' },
-          ]}
-        >
-          <MockLineChart colors={['#FB923C', '#F87171', '#34D399']} multi />
-        </ChartCard>
+          {/* Savings Activity */}
+          <SimpleBarCard
+            title="Savings Activity"
+            dateRange="February 2 - February 8"
+            data={savingsData}
+            barColor="#818CF8"
+            maxValue={20000}
+            yAxisLabelSuffix="K"
+            legend={[{ color: '#818CF8', label: 'Total Savings' }]}
+          />
 
-        <ChartCard 
-          title="Savings Activity" 
-          dateRange="Feb 2 - Feb 8"
-          legend={[{ color: '#6366F1', label: 'Total Savings' }]}
-        >
-          <MockLineChart colors={['#6366F1']} />
-        </ChartCard>
+          {/* Total Expenses Activity */}
+          <SimpleBarCard
+            title="Total Expenses Activity"
+            dateRange="February 2 - February 8"
+            data={expensesData}
+            barColor="#F87171"
+            maxValue={40000}
+            yAxisLabelSuffix="K"
+            legend={[{ color: '#F87171', label: 'Expenses' }]}
+          />
 
-        <ChartCard 
-          title="Total Expenses" 
-          dateRange="Feb 2 - Feb 8"
-          legend={[{ color: '#F87171', label: 'Expenses' }]}
-        >
-          <MockLineChart colors={['#F87171']} />
-        </ChartCard>
-
-        {/* Extra Info or Stats */}
-        <View className="bg-slate-800/40 rounded-[24px] p-6 mb-6">
-          <Text className="text-white text-lg font-bold mb-4">Monthly Insights</Text>
-          <View className="flex-row justify-between mb-4">
-            <View>
-              <Text className="text-slate-400 text-sm">Average Spending</Text>
-              <Text className="text-white text-xl font-bold mt-1">$1,240.00</Text>
-            </View>
-            <View className="items-end">
-              <Text className="text-emerald-400 text-sm flex-row items-center">
-                <Ionicons name="arrow-down" size={14} /> 12%
-              </Text>
-              <Text className="text-slate-500 text-[10px] mt-1">vs last month</Text>
-            </View>
+          {/* Want To Know More? */}
+          <View className="mb-5 p-6 rounded-[30px]" style={{ backgroundColor: '#334155' }}>
+            <Text className="text-white text-xl font-bold mb-3">
+              Want To Know More?
+            </Text>
+            <Text className="text-slate-300 text-sm leading-6 mb-6">
+              Get a clear picture of how your AI is performing. Dive into usage
+              trends, accuracy rates, and time-saved metrics to see the real
+              impact on your workflow.
+            </Text>
+            <TouchableOpacity
+              className="rounded-full py-4 items-center"
+              style={{ backgroundColor: '#475569' }}
+              activeOpacity={0.8}
+            >
+              <Text className="text-white font-bold text-base">AI Analytics</Text>
+            </TouchableOpacity>
           </View>
-          <View className="h-[1px] bg-slate-700/50 my-2" />
-          <View className="flex-row justify-between mt-2">
-            <View>
-              <Text className="text-slate-400 text-sm">Top Category</Text>
-              <Text className="text-white text-xl font-bold mt-1">Rent & Bills</Text>
-            </View>
-            <View className="items-end justify-center">
-              <View className="bg-slate-700/50 px-3 py-1 rounded-full">
-                <Text className="text-slate-300 text-xs">View Details</Text>
-              </View>
-            </View>
-          </View>
-        </View>
-
-      </ScrollView>
-    </SafeAreaView>
+        </ScrollView>
+      </SafeAreaView>
+    </View>
   );
 }
