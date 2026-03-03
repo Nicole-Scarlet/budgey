@@ -27,30 +27,7 @@ type FinanceContextType = {
 const FinanceContext = createContext<FinanceContextType | undefined>(undefined);
 
 export function FinanceProvider({ children }: { children: ReactNode }) {
-  const [debts, setDebts] = useState<Debt[]>([
-    {
-      id: 1,
-      person: 'Ryan',
-      description: 'Utang kay Nigel',
-      date: 'February 5, 2026',
-      initialAmount: 5000,
-      remainingAmount: 5000,
-      direction: 'right',
-      payments: [],
-      status: 'pending',
-    },
-    {
-      id: 2,
-      person: 'Ryan',
-      description: 'Utang sayo ni Nigel',
-      date: 'February 5, 2026',
-      initialAmount: 5000,
-      remainingAmount: 5000,
-      direction: 'left',
-      payments: [],
-      status: 'pending',
-    },
-  ]);
+  const [debts, setDebts] = useState<Debt[]>([]);
 
   const addDebt = (debt: Omit<Debt, 'id' | 'remainingAmount' | 'payments' | 'status'>) => {
     const newDebt: Debt = {
