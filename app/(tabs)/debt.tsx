@@ -11,10 +11,14 @@ import {
   TextInput,
   TouchableOpacity,
   UIManager,
-  View,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { Debt, useFinance } from "../../context/FinanceContext";
+  Modal,
+  TextInput,
+  StyleSheet,
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFinance, Debt } from '../../context/FinanceContext';
 
 if (
   Platform.OS === "android" &&
@@ -140,23 +144,18 @@ function CollapsibleDebtSection({
 
 export default function DebtScreen() {
   const router = useRouter();
+  const { height: SCREEN_HEIGHT } = useWindowDimensions();
   const { debts, addPayment } = useFinance();
   const [isYourDebtsOpen, setIsYourDebtsOpen] = useState(true);
   const [isOthersDebtsOpen, setIsOthersDebtsOpen] = useState(true);
   const [selectedDebt, setSelectedDebt] = useState<Debt | null>(null);
-  const [paymentAmount, setPaymentAmount] = useState("");
+  const [paymentAmount, setPaymentAmount] = useState('');
 
-  const yourDebtsData = debts.filter((d) => d.direction === "right");
-  const othersDebtsData = debts.filter((d) => d.direction === "left");
+  const yourDebtsData = debts.filter((d) => d.direction === 'right');
+  const othersDebtsData = debts.filter((d) => d.direction === 'left');
 
-  const totalOwesMe = yourDebtsData.reduce(
-    (acc, d) => acc + d.remainingAmount,
-    0,
-  );
-  const totalIOwe = othersDebtsData.reduce(
-    (acc, d) => acc + d.remainingAmount,
-    0,
-  );
+  const totalOwesMe = yourDebtsData.reduce((acc, d) => acc + d.remainingAmount, 0);
+  const totalIOwe = othersDebtsData.reduce((acc, d) => acc + d.remainingAmount, 0);
   const netBalance = totalOwesMe - totalIOwe;
 
   const formatCurrency = (value: number) => {
@@ -169,13 +168,12 @@ export default function DebtScreen() {
     if (isNaN(amount) || amount <= 0) return;
 
     addPayment(selectedDebt.id, amount);
-    setPaymentAmount("");
+    setPaymentAmount('');
     // Optionally close modal or keep open to show updated state
-    const updatedDebt = debts.find((d) => d.id === selectedDebt.id);
+    const updatedDebt = debts.find(d => d.id === selectedDebt.id);
     if (updatedDebt) setSelectedDebt(updatedDebt);
   };
 
-  // Sync selectedDebt UI when debts array changes
   useEffect(() => {
     if (selectedDebt) {
       const updated = debts.find((d) => d.id === selectedDebt.id);
@@ -185,7 +183,7 @@ export default function DebtScreen() {
 
   return (
     <View className="flex-1 bg-[#1E293B]">
-      <SafeAreaView className="flex-1" edges={["top"]}>
+      <SafeAreaView className="flex-1" edges={['top']}>
         <ScrollView
           className="flex-1"
           contentContainerStyle={{ paddingBottom: 120 }}
@@ -194,8 +192,7 @@ export default function DebtScreen() {
           {/* Header Section */}
           <View className="items-center pt-10 pb-8 px-7">
             <Text className="text-white text-5xl font-extrabold tracking-tight mb-1 text-center">
-              {formatCurrency(50000)}{" "}
-              {/* Placeholder, maybe sync with actual budget later */}
+              {formatCurrency(50000)} {/* Placeholder, maybe sync with actual budget later */}
             </Text>
             <Text className="text-slate-300 text-xl font-medium">
               Overall Budget
@@ -206,9 +203,9 @@ export default function DebtScreen() {
           <View
             className="mx-7 mb-6 rounded-[20px] px-4 py-4"
             style={{
-              backgroundColor: "#334155",
+              backgroundColor: '#334155',
               borderWidth: 1,
-              borderColor: "#475569",
+              borderColor: '#475569',
             }}
           >
             <View className="flex-row justify-between items-center">
@@ -222,16 +219,15 @@ export default function DebtScreen() {
                   <View
                     className="w-11 h-11 rounded-full items-center justify-center"
                     style={{
-                      backgroundColor:
-                        action.id === "debt" ? "#1E293B" : "#475569",
-                      borderWidth: action.id === "debt" ? 1 : 0,
-                      borderColor: "#475569",
+                      backgroundColor: action.id === 'debt' ? '#1E293B' : '#475569',
+                      borderWidth: action.id === 'debt' ? 1 : 0,
+                      borderColor: '#475569',
                     }}
                   >
                     <Ionicons
                       name={action.icon}
                       size={22}
-                      color={action.id === "debt" ? "#94A3B8" : "white"}
+                      color={action.id === 'debt' ? '#94A3B8' : 'white'}
                     />
                   </View>
                   <Text
@@ -245,37 +241,52 @@ export default function DebtScreen() {
             </View>
           </View>
 
-          {/* Collapsible Sections */}
-          <CollapsibleDebtSection
-            title="Owes Me"
-            items={yourDebtsData}
-            isOpen={isYourDebtsOpen}
-            onToggle={() => setIsYourDebtsOpen(!isYourDebtsOpen)}
-            onPressItem={(debt) => setSelectedDebt(debt)}
-          />
+            {/* Collapsible Sections */}
+            <CollapsibleDebtSection
+              title="Owes Me"
+              items={yourDebtsData}
+              isOpen={isYourDebtsOpen}
+              onToggle={() => setIsYourDebtsOpen(!isYourDebtsOpen)}
+              onPressItem={(debt) => setSelectedDebt(debt)}
+            />
 
-          <CollapsibleDebtSection
-            title="I Owe"
-            items={othersDebtsData}
-            isOpen={isOthersDebtsOpen}
-            onToggle={() => setIsOthersDebtsOpen(!isOthersDebtsOpen)}
-            onPressItem={(debt) => setSelectedDebt(debt)}
-          />
+            <CollapsibleDebtSection
+              title="I Owe"
+              items={othersDebtsData}
+              isOpen={isOthersDebtsOpen}
+              onToggle={() => setIsOthersDebtsOpen(!isOthersDebtsOpen)}
+              onPressItem={(debt) => setSelectedDebt(debt)}
+            />
+          </ScrollView>
+        </SafeAreaView>
 
-          {/* Bottom Card - Debt Summary */}
-          <View className="mx-7 mt-4">
-            <View
-              className="rounded-[30px] px-6 py-6"
+        {/* ── Bottom Sheet - Debt Summary ── */}
+        <GestureDetector gesture={pan}>
+          <Animated.View 
+            style={[
+              animatedStyle,
+              {
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                height: SCREEN_HEIGHT,
+                backgroundColor: '#1E293B', // Fully covers the view behind it
+              }
+            ]}
+          >
+            <View 
+              className="mx-7 flex-1"
               style={{
-                backgroundColor: "#334155",
+                backgroundColor: '#334155',
                 borderWidth: 1,
-                borderColor: "#475569",
+                borderColor: '#475569',
               }}
             >
               <View className="flex-row items-center justify-between mb-6">
                 <Text className="text-white text-2xl font-bold">Summary</Text>
-                <TouchableOpacity
-                  onPress={() => router.push("/add-debt")}
+                <TouchableOpacity 
+                  onPress={() => router.push('/add-debt')}
                   className="w-8 h-8 rounded-full bg-[#475569] items-center justify-center text-center"
                 >
                   <Ionicons name="add" size={24} color="white" />
@@ -284,34 +295,21 @@ export default function DebtScreen() {
 
               <View className="gap-y-4">
                 <View className="flex-row justify-between items-center">
-                  <Text className="text-slate-400 text-base font-semibold">
-                    Owes Me
-                  </Text>
-                  <Text className="text-[#4ADE80] text-lg font-bold">
-                    {formatCurrency(totalOwesMe)}
-                  </Text>
+                  <Text className="text-slate-400 text-base font-semibold">Owes Me</Text>
+                  <Text className="text-[#4ADE80] text-lg font-bold">{formatCurrency(totalOwesMe)}</Text>
                 </View>
 
                 <View className="flex-row justify-between items-center">
-                  <Text className="text-slate-400 text-base font-semibold">
-                    I Owe
-                  </Text>
-                  <Text className="text-[#F87171] text-lg font-bold">
-                    {formatCurrency(totalIOwe)}
-                  </Text>
+                  <Text className="text-slate-400 text-base font-semibold">I Owe</Text>
+                  <Text className="text-[#F87171] text-lg font-bold">{formatCurrency(totalIOwe)}</Text>
                 </View>
 
                 <View className="h-[1px] bg-[#475569] my-1" />
 
                 <View className="flex-row justify-between items-center">
-                  <Text className="text-white text-lg font-bold">
-                    Net Balance
-                  </Text>
-                  <Text
-                    className={`text-lg font-bold ${netBalance >= 0 ? "text-[#4ADE80]" : "text-[#F87171]"}`}
-                  >
-                    {netBalance < 0 ? "-" : ""}
-                    {formatCurrency(netBalance)}
+                  <Text className="text-white text-lg font-bold">Net Balance</Text>
+                  <Text className={`text-lg font-bold ${netBalance >= 0 ? 'text-[#4ADE80]' : 'text-[#F87171]'}`}>
+                    {netBalance < 0 ? '-' : ''}{formatCurrency(netBalance)}
                   </Text>
                 </View>
               </View>
@@ -335,18 +333,12 @@ export default function DebtScreen() {
             {/* Modal Header */}
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{selectedDebt?.description}</Text>
-              <TouchableOpacity
-                onPress={() => setSelectedDebt(null)}
-                style={styles.closeButton}
-              >
+              <TouchableOpacity onPress={() => setSelectedDebt(null)} style={styles.closeButton}>
                 <Ionicons name="close" size={24} color="white" />
               </TouchableOpacity>
             </View>
 
-            <ScrollView
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={{ paddingBottom: 40 }}
-            >
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
               {/* Info Rows */}
               <View style={styles.infoSection}>
                 {/* Remaining Amount */}
@@ -355,14 +347,12 @@ export default function DebtScreen() {
                     <Ionicons name="cash-outline" size={20} color="white" />
                   </View>
                   <View>
-                    <Text style={styles.infoValue}>
-                      {formatCurrency(selectedDebt?.remainingAmount || 0)}
-                    </Text>
+                    <Text style={styles.infoValue}>{formatCurrency(selectedDebt?.remainingAmount || 0)}</Text>
                     <Text style={styles.infoLabel}>Remaining Amount</Text>
                   </View>
                 </View>
 
-                <View style={styles.divider} />
+                  <View style={styles.divider} />
 
                 {/* Initial Amount */}
                 <View style={styles.infoRow}>
@@ -370,33 +360,25 @@ export default function DebtScreen() {
                     <Ionicons name="wallet-outline" size={20} color="white" />
                   </View>
                   <View>
-                    <Text style={styles.infoValue}>
-                      {formatCurrency(selectedDebt?.initialAmount || 0)}
-                    </Text>
+                    <Text style={styles.infoValue}>{formatCurrency(selectedDebt?.initialAmount || 0)}</Text>
                     <Text style={styles.infoLabel}>Initial Amount</Text>
                   </View>
                 </View>
 
-                <View style={styles.divider} />
+                  <View style={styles.divider} />
 
                 {/* Concept */}
                 <View style={styles.infoRow}>
                   <View style={styles.iconContainer}>
-                    <Ionicons
-                      name="document-text-outline"
-                      size={20}
-                      color="white"
-                    />
+                    <Ionicons name="document-text-outline" size={20} color="white" />
                   </View>
                   <View>
-                    <Text style={styles.infoValue}>
-                      {selectedDebt?.description}
-                    </Text>
+                    <Text style={styles.infoValue}>{selectedDebt?.description}</Text>
                     <Text style={styles.infoLabel}>Debt Concept</Text>
                   </View>
                 </View>
 
-                <View style={styles.divider} />
+                  <View style={styles.divider} />
 
                 {/* Debtor/Creditor Info */}
                 <View style={styles.infoRow}>
@@ -406,58 +388,38 @@ export default function DebtScreen() {
                   <View>
                     <Text style={styles.infoValue}>{selectedDebt?.person}</Text>
                     <Text style={styles.infoLabel}>
-                      {selectedDebt?.direction === "left"
-                        ? "This person is the creditor"
-                        : "This person is the debtor"}
+                      {selectedDebt?.direction === 'left' ? "This person is the creditor" : "This person is the debtor"}
                     </Text>
                   </View>
                 </View>
 
-                <View style={styles.divider} />
+                  <View style={styles.divider} />
 
-                {/* Creation Date */}
-                <View style={styles.infoRow}>
-                  <View style={styles.iconContainer}>
-                    <Ionicons name="calendar-outline" size={20} color="white" />
+                  {/* Creation Date */}
+                  <View style={styles.infoRow}>
+                    <View style={styles.iconContainer}>
+                      <Ionicons name="calendar-outline" size={20} color="white" />
+                    </View>
+                    <View>
+                      <Text style={styles.infoValue}>{selectedDebt?.date}</Text>
+                      <Text style={styles.infoLabel}>Creation Date</Text>
+                    </View>
                   </View>
-                  <View>
-                    <Text style={styles.infoValue}>{selectedDebt?.date}</Text>
-                    <Text style={styles.infoLabel}>Creation Date</Text>
-                  </View>
-                </View>
 
-                <View style={styles.divider} />
+                  <View style={styles.divider} />
 
                 {/* State */}
                 <View style={styles.infoRow}>
                   <View style={styles.iconContainer}>
-                    <Ionicons
-                      name={
-                        selectedDebt?.status === "paid"
-                          ? "checkmark-circle"
-                          : "alert-circle"
-                      }
-                      size={20}
-                      color={
-                        selectedDebt?.status === "paid" ? "#4ADE80" : "#F87171"
-                      }
+                    <Ionicons 
+                      name={selectedDebt?.status === 'paid' ? "checkmark-circle" : "alert-circle"} 
+                      size={20} 
+                      color={selectedDebt?.status === 'paid' ? "#4ADE80" : "#F87171"} 
                     />
                   </View>
                   <View>
-                    <Text
-                      style={[
-                        styles.infoValue,
-                        {
-                          color:
-                            selectedDebt?.status === "paid"
-                              ? "#4ADE80"
-                              : "#F87171",
-                        },
-                      ]}
-                    >
-                      {selectedDebt?.status === "paid"
-                        ? "This debt is paid"
-                        : "This debt is pending in payment"}
+                    <Text style={[styles.infoValue, { color: selectedDebt?.status === 'paid' ? "#4ADE80" : "#F87171" }]}>
+                      {selectedDebt?.status === 'paid' ? "This debt is paid" : "This debt is pending in payment"}
                     </Text>
                     <Text style={styles.infoLabel}>State</Text>
                   </View>
@@ -465,7 +427,7 @@ export default function DebtScreen() {
               </View>
 
               {/* Add Payment Section */}
-              {selectedDebt?.status === "pending" && (
+              {selectedDebt?.status === 'pending' && (
                 <View style={styles.paymentSection}>
                   <TextInput
                     style={styles.paymentInput}
@@ -475,10 +437,7 @@ export default function DebtScreen() {
                     value={paymentAmount}
                     onChangeText={setPaymentAmount}
                   />
-                  <TouchableOpacity
-                    onPress={handleAddPayment}
-                    style={styles.paymentButton}
-                  >
+                  <TouchableOpacity onPress={handleAddPayment} style={styles.paymentButton}>
                     <Text style={styles.paymentButtonText}>+ ADD PAYMENT</Text>
                   </TouchableOpacity>
                 </View>
@@ -491,15 +450,11 @@ export default function DebtScreen() {
                   selectedDebt.payments.map((p) => (
                     <View key={p.id} style={styles.historyItem}>
                       <Text style={styles.historyDate}>{p.date}</Text>
-                      <Text style={styles.historyAmount}>
-                        {formatCurrency(p.amount)}
-                      </Text>
+                      <Text style={styles.historyAmount}>{formatCurrency(p.amount)}</Text>
                     </View>
                   ))
                 ) : (
-                  <Text style={styles.noHistory}>
-                    No payments have been made yet
-                  </Text>
+                  <Text style={styles.noHistory}>No payments have been made yet</Text>
                 )}
               </View>
             </ScrollView>
