@@ -1,113 +1,117 @@
-import React from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-} from 'react-native';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import React from "react";
+import { ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useFinance } from "../../context/FinanceContext";
 
 const quickActions = [
   {
-    id: 'expenses',
-    label: 'Expenses',
-    icon: 'cafe-outline' as const,
-    route: '/expenses',
+    id: "expenses",
+    label: "Expenses",
+    icon: "cafe-outline" as const,
+    route: "/expenses",
   },
   {
-    id: 'income',
-    label: 'Income',
-    icon: 'grid-outline' as const,
-    route: '/income',
+    id: "income",
+    label: "Income",
+    icon: "grid-outline" as const,
+    route: "/income",
   },
   {
-    id: 'savings',
-    label: 'Savings',
-    icon: 'videocam-outline' as const,
-    route: '/savings',
+    id: "savings",
+    label: "Savings",
+    icon: "videocam-outline" as const,
+    route: "/savings",
   },
   {
-    id: 'debt',
-    label: 'Debt',
-    icon: 'lock-closed-outline' as const,
-    route: '/debt',
+    id: "debt",
+    label: "Debt",
+    icon: "lock-closed-outline" as const,
+    route: "/debt",
   },
   {
-    id: 'investment',
-    label: 'Investment',
-    icon: 'trending-up-outline' as const,
-    route: '/investment',
+    id: "investment",
+    label: "Investment",
+    icon: "trending-up-outline" as const,
+    route: "/investment",
   },
 ];
 
 const transactions = [
   {
     id: 1,
-    name: 'Budget',
-    icon: 'cafe-outline' as const,
-    amount: '-₱20,000.00',
+    name: "Budget",
+    icon: "cafe-outline" as const,
+    amount: "-₱20,000.00",
     isNegative: true,
   },
   {
     id: 2,
-    name: 'Job',
-    icon: 'grid-outline' as const,
-    amount: '+₱20,000.00',
+    name: "Job",
+    icon: "grid-outline" as const,
+    amount: "+₱20,000.00",
     isNegative: false,
   },
   {
     id: 3,
-    name: 'Budget',
-    icon: 'videocam-outline' as const,
-    amount: '+₱20,000.00',
+    name: "Budget",
+    icon: "videocam-outline" as const,
+    amount: "+₱20,000.00",
     isNegative: false,
   },
   {
     id: 4,
-    name: 'Utang kay Nigel',
-    icon: 'lock-closed-outline' as const,
-    amount: '~₱5,000.00',
+    name: "Utang kay Nigel",
+    icon: "lock-closed-outline" as const,
+    amount: "~₱5,000.00",
     isNegative: true,
   },
   {
     id: 5,
-    name: 'Corporation ni Jedrick',
-    icon: 'trending-up-outline' as const,
-    amount: '+₱5,000.00',
+    name: "Corporation ni Jedrick",
+    icon: "trending-up-outline" as const,
+    amount: "+₱5,000.00",
     isNegative: false,
   },
 ];
 
 export default function SummaryScreen() {
   const router = useRouter();
+  const { budget } = useFinance();
+
+  const formatCurrency = (value: number) => {
+    return `₱${Math.abs(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
 
   return (
     <View className="flex-1 bg-[#1E293B]">
-      <SafeAreaView className="flex-1" edges={['top']}>
+      <SafeAreaView className="flex-1" edges={["top"]}>
         <ScrollView
           className="flex-1"
           contentContainerStyle={{ paddingBottom: 120 }}
           showsVerticalScrollIndicator={false}
         >
           {/* Overall Budget Section */}
-          <View className="items-center pt-10 pb-8 px-7">
+          <TouchableOpacity
+            className="items-center pt-10 pb-8 px-7"
+            onPress={() => router.push("/budget")}
+          >
             <Text className="text-white text-5xl font-extrabold tracking-tight mb-1">
-              ₱50,000.00
+              {formatCurrency(budget)}
             </Text>
             <Text className="text-slate-300 text-xl font-medium">
               Overall Budget
             </Text>
-          </View>
+          </TouchableOpacity>
 
           {/* Quick Actions Row */}
           <View
             className="mx-7 mb-6 rounded-[20px] px-4 py-4"
             style={{
-              backgroundColor: '#334155',
+              backgroundColor: "#334155",
               borderWidth: 1,
-              borderColor: '#475569',
+              borderColor: "#475569",
             }}
           >
             <View className="flex-row justify-between items-center">
@@ -120,7 +124,7 @@ export default function SummaryScreen() {
                 >
                   <View
                     className="w-11 h-11 rounded-full items-center justify-center"
-                    style={{ backgroundColor: '#475569' }}
+                    style={{ backgroundColor: "#475569" }}
                   >
                     <Ionicons name={action.icon} size={22} color="white" />
                   </View>
@@ -140,9 +144,9 @@ export default function SummaryScreen() {
             <View
               className="rounded-[20px] px-5 py-4"
               style={{
-                backgroundColor: '#334155',
+                backgroundColor: "#334155",
                 borderWidth: 1,
-                borderColor: '#475569',
+                borderColor: "#475569",
               }}
             >
               {/* Card Header */}
@@ -168,7 +172,7 @@ export default function SummaryScreen() {
                       index < transactions.length - 1
                         ? {
                             borderBottomWidth: 1,
-                            borderBottomColor: '#475569',
+                            borderBottomColor: "#475569",
                           }
                         : undefined
                     }
@@ -177,7 +181,7 @@ export default function SummaryScreen() {
                     <View className="flex-row items-center gap-x-3 flex-1">
                       <View
                         className="w-8 h-8 rounded-full items-center justify-center"
-                        style={{ backgroundColor: '#475569' }}
+                        style={{ backgroundColor: "#475569" }}
                       >
                         <Ionicons name={tx.icon} size={16} color="#94A3B8" />
                       </View>
@@ -193,7 +197,7 @@ export default function SummaryScreen() {
                     <Text
                       className="text-sm font-bold ml-2"
                       style={{
-                        color: tx.isNegative ? '#F87171' : '#4ADE80',
+                        color: tx.isNegative ? "#F87171" : "#4ADE80",
                       }}
                     >
                       {tx.amount}

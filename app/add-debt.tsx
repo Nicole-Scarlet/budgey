@@ -1,26 +1,33 @@
-import React, { useState } from 'react';
 import {
-  View,
+  AntDesign,
+  Ionicons,
+  MaterialCommunityIcons,
+  MaterialIcons,
+} from "@expo/vector-icons";
+import DateTimePicker, {
+  DateTimePickerEvent,
+} from "@react-native-community/datetimepicker";
+import { Stack, useRouter } from "expo-router";
+import React, { useState } from "react";
+import {
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
-} from 'react-native';
-import { Ionicons, MaterialIcons, MaterialCommunityIcons, AntDesign } from '@expo/vector-icons';
-import { useRouter, Stack } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import { useFinance } from '../context/FinanceContext';
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useFinance } from "../context/FinanceContext";
 
 export default function AddDebtScreen() {
   const router = useRouter();
   const { addDebt } = useFinance();
-  const [debtType, setDebtType] = useState<'owes_me' | 'i_owe'>('owes_me');
-  const [amount, setAmount] = useState('');
-  const [contact, setContact] = useState('');
-  const [concept, setConcept] = useState('');
+  const [debtType, setDebtType] = useState<"owes_me" | "i_owe">("owes_me");
+  const [amount, setAmount] = useState("");
+  const [contact, setContact] = useState("");
+  const [concept, setConcept] = useState("");
   const [date, setDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
 
@@ -32,48 +39,47 @@ export default function AddDebtScreen() {
   };
 
   const formatDate = (date: Date) => {
-    return date.toLocaleDateString('en-US', {
-      month: 'long',
-      day: 'numeric',
-      year: 'numeric',
+    return date.toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
     });
   };
 
-  const handleAddDebt = () => {
+  const handleAddDebt = async () => {
     if (!amount || !contact || !concept) {
-      alert('Please fill in all fields');
+      alert("Please fill in all fields");
       return;
     }
 
-    const direction = debtType === 'owes_me' ? 'right' : 'left';
+    const direction = debtType === "owes_me" ? "right" : "left";
 
-    addDebt({
+    await addDebt({
       person: contact,
       description: concept,
       date: formatDate(date),
       initialAmount: parseFloat(amount) || 0,
-      direction: direction as 'left' | 'right',
+      direction: direction as "left" | "right",
     });
-    
+
     router.back();
   };
 
   return (
     <View className="flex-1 bg-[#1E293B]">
-      <Stack.Screen 
+      <Stack.Screen
         options={{
           headerShown: true,
-          title: 'Add Debt',
-          headerStyle: { backgroundColor: '#1E293B' },
-          headerTintColor: '#FFFFFF',
-          headerTitleStyle: { fontWeight: 'bold' },
+          title: "Add Debt",
+          headerStyle: { backgroundColor: "#1E293B" },
+          headerTintColor: "#FFFFFF",
+          headerTitleStyle: { fontWeight: "bold" },
           headerShadowVisible: false,
-        }} 
+        }}
       />
-      <SafeAreaView className="flex-1" edges={['bottom']}>
-
+      <SafeAreaView className="flex-1" edges={["bottom"]}>
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
           className="flex-1"
         >
           <ScrollView
@@ -86,25 +92,35 @@ export default function AddDebtScreen() {
               {/* Toggle Controls */}
               <View className="gap-y-4">
                 <TouchableOpacity
-                  onPress={() => setDebtType('owes_me')}
+                  onPress={() => setDebtType("owes_me")}
                   className="flex-row items-center gap-x-3"
                   activeOpacity={0.7}
                 >
                   <Ionicons
-                    name={debtType === 'owes_me' ? 'radio-button-on' : 'radio-button-off'}
+                    name={
+                      debtType === "owes_me"
+                        ? "radio-button-on"
+                        : "radio-button-off"
+                    }
                     size={24}
                     color="white"
                   />
-                  <Text className="text-white text-lg font-medium">Owes Me</Text>
+                  <Text className="text-white text-lg font-medium">
+                    Owes Me
+                  </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  onPress={() => setDebtType('i_owe')}
+                  onPress={() => setDebtType("i_owe")}
                   className="flex-row items-center gap-x-3"
                   activeOpacity={0.7}
                 >
                   <Ionicons
-                    name={debtType === 'i_owe' ? 'radio-button-on' : 'radio-button-off'}
+                    name={
+                      debtType === "i_owe"
+                        ? "radio-button-on"
+                        : "radio-button-off"
+                    }
                     size={24}
                     color="white"
                   />
@@ -115,12 +131,16 @@ export default function AddDebtScreen() {
               {/* Visual Indicator */}
               <View className="flex-row items-center gap-x-4">
                 <AntDesign
-                  name={debtType === 'owes_me' ? 'arrow-left' : 'arrow-right'}
+                  name={debtType === "owes_me" ? "arrow-left" : "arrow-right"}
                   size={32}
-                  color={debtType === 'owes_me' ? '#22C55E' : '#EF4444'}
+                  color={debtType === "owes_me" ? "#22C55E" : "#EF4444"}
                 />
                 <View className="w-20 h-20 rounded-full border-2 border-white/20 items-center justify-center">
-                  <MaterialIcons name="person-outline" size={48} color="white" />
+                  <MaterialIcons
+                    name="person-outline"
+                    size={48}
+                    color="white"
+                  />
                 </View>
               </View>
             </View>
@@ -141,7 +161,9 @@ export default function AddDebtScreen() {
                 </View>
                 {/* Currency Dropdown Placeholder */}
                 <TouchableOpacity className="flex-1 bg-[#334155] rounded-2xl px-4 py-4 flex-row items-center justify-between">
-                  <Text className="text-white text-base font-bold">PHP (₱)</Text>
+                  <Text className="text-white text-base font-bold">
+                    PHP (₱)
+                  </Text>
                   <Ionicons name="chevron-down" size={16} color="white" />
                 </TouchableOpacity>
               </View>
@@ -183,7 +205,7 @@ export default function AddDebtScreen() {
               <DateTimePicker
                 value={date}
                 mode="date"
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                display={Platform.OS === "ios" ? "spinner" : "default"}
                 onChange={onDateChange}
               />
             )}

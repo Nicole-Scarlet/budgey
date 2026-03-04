@@ -1,81 +1,92 @@
-import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
-import { Ionicons, MaterialCommunityIcons, MaterialIcons, Feather } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+    Feather,
+    Ionicons,
+    MaterialCommunityIcons,
+    MaterialIcons,
+} from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import React from "react";
+import { ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useFinance } from "../../context/FinanceContext";
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { budget } = useFinance();
+
+  const formatCurrency = (value: number) => {
+    return `₱${Math.abs(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
 
   const topExpenses = [
-    { id: 1, rank: 1, name: 'Bukidnon Fresh Farm Milk', price: '₱676,767.67' },
-    { id: 2, rank: 2, name: 'GPU', price: '₱20,000.00' },
-    { id: 3, rank: 3, name: 'Very Cool Figurine Set', price: '₱4,500.00' },
-    { id: 4, rank: 4, name: 'V-Power Diesel 95', price: '₱1,000.00' },
-    { id: 5, rank: 5, name: 'Overwatch Battlepass', price: '₱500.00' },
+    { id: 1, rank: 1, name: "Bukidnon Fresh Farm Milk", price: "₱676,767.67" },
+    { id: 2, rank: 2, name: "GPU", price: "₱20,000.00" },
+    { id: 3, rank: 3, name: "Very Cool Figurine Set", price: "₱4,500.00" },
+    { id: 4, rank: 4, name: "V-Power Diesel 95", price: "₱1,000.00" },
+    { id: 5, rank: 5, name: "Overwatch Battlepass", price: "₱500.00" },
   ];
 
   const summaryItems = [
     {
       id: 1,
-      type: 'Expenses',
-      label: 'Expenses',
-      subtitle: 'Details',
-      iconBg: '#F97316',
-      iconName: 'cafe-outline' as const,
-      iconLib: 'Ionicons' as const,
+      type: "Expenses",
+      label: "Expenses",
+      subtitle: "Details",
+      iconBg: "#F97316",
+      iconName: "cafe-outline" as const,
+      iconLib: "Ionicons" as const,
       hasWarning: true,
-      route: '/add-expenses',
+      route: "/add-expenses",
     },
     {
       id: 2,
-      type: 'Income',
-      label: 'Income',
-      subtitle: 'Details',
-      iconBg: '#22C55E',
-      iconName: 'grid-outline' as const,
-      iconLib: 'Ionicons' as const,
+      type: "Income",
+      label: "Income",
+      subtitle: "Details",
+      iconBg: "#22C55E",
+      iconName: "grid-outline" as const,
+      iconLib: "Ionicons" as const,
       hasWarning: false,
       route: null,
     },
     {
       id: 3,
-      type: 'Savings',
-      label: 'Savings',
-      subtitle: 'uh oh u a brokie',
-      iconBg: '#3B82F6',
-      iconName: 'videocam-outline' as const,
-      iconLib: 'Ionicons' as const,
+      type: "Savings",
+      label: "Savings",
+      subtitle: "uh oh u a brokie",
+      iconBg: "#3B82F6",
+      iconName: "videocam-outline" as const,
+      iconLib: "Ionicons" as const,
       hasWarning: true,
-      route: '/savings',
+      route: "/savings",
     },
     {
       id: 4,
-      type: 'Debt',
-      label: 'Debt',
-      subtitle: 'Details??',
-      iconBg: '#EAB308',
-      iconName: 'lock-closed-outline' as const,
-      iconLib: 'Ionicons' as const,
+      type: "Debt",
+      label: "Debt",
+      subtitle: "Details??",
+      iconBg: "#EAB308",
+      iconName: "lock-closed-outline" as const,
+      iconLib: "Ionicons" as const,
       hasWarning: false,
-      route: '/debt',
+      route: "/debt",
     },
     {
       id: 5,
-      type: 'Investment',
-      label: 'Investment',
-      subtitle: 'Details??',
-      iconBg: '#F97316',
-      iconName: 'trending-up-outline' as const,
-      iconLib: 'Ionicons' as const,
+      type: "Investment",
+      label: "Investment",
+      subtitle: "Details??",
+      iconBg: "#F97316",
+      iconName: "trending-up-outline" as const,
+      iconLib: "Ionicons" as const,
       hasWarning: false,
-      route: '/investment',
+      route: "/investment",
     },
   ];
 
   return (
     <View className="flex-1 bg-[#1E293B]">
-      <SafeAreaView className="flex-1" edges={['top']}>
+      <SafeAreaView className="flex-1" edges={["top"]}>
         <ScrollView
           className="flex-1"
           contentContainerStyle={{ paddingBottom: 120 }}
@@ -87,7 +98,9 @@ export default function HomeScreen() {
             <View className="flex-row items-center gap-x-3">
               <View className="flex-row items-center gap-x-1">
                 <Ionicons name="flash" size={20} color="#FBBF24" />
-                <Text className="text-slate-300 font-semibold text-base">67</Text>
+                <Text className="text-slate-300 font-semibold text-base">
+                  67
+                </Text>
               </View>
               <TouchableOpacity>
                 <Ionicons name="heart-outline" size={24} color="white" />
@@ -100,34 +113,52 @@ export default function HomeScreen() {
             <View
               className="rounded-[24px] p-6"
               style={{
-                backgroundColor: '#334155',
+                backgroundColor: "#334155",
                 borderWidth: 1,
-                borderColor: '#90A1B9',
+                borderColor: "#90A1B9",
               }}
             >
               <Text className="text-slate-300 text-sm mb-1">Total Balance</Text>
-              <Text className="text-white text-3xl font-extrabold mb-5">₱50,000.00</Text>
+              <TouchableOpacity onPress={() => router.push("/budget")}>
+                <Text className="text-white text-3xl font-extrabold mb-5">
+                  {formatCurrency(budget)}
+                </Text>
+              </TouchableOpacity>
 
               <View className="flex-row items-center gap-x-6">
                 {/* Income & Savings */}
                 <View className="flex-row items-center gap-x-2 flex-1">
                   <View className="bg-green-500/20 p-1 rounded-full">
-                    <MaterialIcons name="arrow-upward" size={16} color="#22C55E" />
+                    <MaterialIcons
+                      name="arrow-upward"
+                      size={16}
+                      color="#22C55E"
+                    />
                   </View>
                   <View>
-                    <Text className="text-slate-400 text-xs">Income &amp; Savings</Text>
-                    <Text className="text-white font-bold text-sm">₱40,000.00</Text>
+                    <Text className="text-slate-400 text-xs">
+                      Income &amp; Savings
+                    </Text>
+                    <Text className="text-white font-bold text-sm">
+                      ₱40,000.00
+                    </Text>
                   </View>
                 </View>
 
                 {/* Expenses */}
                 <View className="flex-row items-center gap-x-2 flex-1">
                   <View className="bg-red-500/20 p-1 rounded-full">
-                    <MaterialIcons name="arrow-downward" size={16} color="#EF4444" />
+                    <MaterialIcons
+                      name="arrow-downward"
+                      size={16}
+                      color="#EF4444"
+                    />
                   </View>
                   <View>
                     <Text className="text-slate-400 text-xs">Expenses</Text>
-                    <Text className="text-white font-bold text-sm">₱20,000.00</Text>
+                    <Text className="text-white font-bold text-sm">
+                      ₱20,000.00
+                    </Text>
                   </View>
                 </View>
               </View>
@@ -138,7 +169,9 @@ export default function HomeScreen() {
           <View className="mt-7">
             <View className="px-7 flex-row items-center gap-x-2 mb-4">
               <Ionicons name="ribbon-outline" size={22} color="white" />
-              <Text className="text-white text-xl font-bold">Top 5 Expenses</Text>
+              <Text className="text-white text-xl font-bold">
+                Top 5 Expenses
+              </Text>
             </View>
 
             <ScrollView
@@ -153,17 +186,19 @@ export default function HomeScreen() {
                   style={{
                     width: 110,
                     height: 135,
-                    backgroundColor: '#334155',
+                    backgroundColor: "#334155",
                     borderWidth: 1,
-                    borderColor: '#475569',
+                    borderColor: "#475569",
                   }}
                 >
                   {/* Rank circle */}
                   <View
                     className="w-8 h-8 rounded-full items-center justify-center self-start"
-                    style={{ backgroundColor: '#475569' }}
+                    style={{ backgroundColor: "#475569" }}
                   >
-                    <Text className="text-white font-bold text-xs">{expense.rank}</Text>
+                    <Text className="text-white font-bold text-xs">
+                      {expense.rank}
+                    </Text>
                   </View>
 
                   <Text
@@ -196,9 +231,9 @@ export default function HomeScreen() {
                 key={item.id}
                 className="flex-row items-center justify-between mb-3 px-4 py-4 rounded-[20px]"
                 style={{
-                  backgroundColor: '#334155',
+                  backgroundColor: "#334155",
                   borderWidth: 1,
-                  borderColor: '#475569',
+                  borderColor: "#475569",
                 }}
               >
                 <View className="flex-row items-center gap-x-4">
@@ -206,30 +241,42 @@ export default function HomeScreen() {
                   <View
                     className="w-11 h-11 rounded-full items-center justify-center"
                     style={{
-                      backgroundColor: 'transparent',
+                      backgroundColor: "transparent",
                       borderWidth: 2.5,
                       borderColor: item.iconBg,
                     }}
                   >
-                    <Ionicons name={item.iconName} size={20} color={item.iconBg} />
+                    <Ionicons
+                      name={item.iconName}
+                      size={20}
+                      color={item.iconBg}
+                    />
                   </View>
 
                   {/* Label + subtitle */}
                   <View>
                     <View className="flex-row items-center gap-x-1">
-                      <Text className="text-white font-bold text-base">{item.label}</Text>
+                      <Text className="text-white font-bold text-base">
+                        {item.label}
+                      </Text>
                       {item.hasWarning && (
-                        <MaterialIcons name="warning" size={14} color="#EF4444" />
+                        <MaterialIcons
+                          name="warning"
+                          size={14}
+                          color="#EF4444"
+                        />
                       )}
                     </View>
-                    <Text className="text-slate-400 text-xs">{item.subtitle}</Text>
+                    <Text className="text-slate-400 text-xs">
+                      {item.subtitle}
+                    </Text>
                   </View>
                 </View>
 
                 {/* Plus button */}
                 <TouchableOpacity
                   className="w-9 h-9 rounded-full items-center justify-center"
-                  style={{ backgroundColor: '#475569' }}
+                  style={{ backgroundColor: "#475569" }}
                   onPress={() => {
                     if (item.route) router.push(item.route as any);
                   }}

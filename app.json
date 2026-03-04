@@ -46,7 +46,8 @@
           "cameraPermission": "Allow Budgey to access your camera"
         }
       ],
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      "expo-sqlite"
     ],
     "experiments": {
       "typedRoutes": true,
