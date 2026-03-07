@@ -5,6 +5,7 @@ interface WishlistContextType {
     wishlistItems: WishlistItem[];
     addItem: (item: Omit<WishlistItem, 'id'>) => void;
     updateItem: (id: number, updates: Partial<WishlistItem>) => void;
+    deleteItem: (id: number) => void;
 }
 
 const WishlistContext = createContext<WishlistContextType | undefined>(undefined);
@@ -21,8 +22,12 @@ export const WishlistProvider = ({ children }: { children: ReactNode }) => {
         setItems(prev => prev.map(item => item.id === id ? { ...item, ...updates } : item));
     };
 
+    const deleteItem = (id: number) => {
+        setItems(prev => prev.filter(item => item.id !== id));
+    };
+
     return (
-        <WishlistContext.Provider value={{ wishlistItems: items, addItem, updateItem }}>
+        <WishlistContext.Provider value={{ wishlistItems: items, addItem, updateItem, deleteItem }}>
             {children}
         </WishlistContext.Provider>
     );

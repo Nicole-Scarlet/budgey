@@ -1,6 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 
-const API_KEY = "AIzaSyDp-G1lJ9e2X9sUtMeS62HcqiABbra-d0Q";
+const API_KEY = "insert key";
 const client = new GoogleGenAI({ apiKey: API_KEY });
 
 export const getGeminiResponse = async (prompt: string, history: any[] = []) => {

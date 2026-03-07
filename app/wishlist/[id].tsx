@@ -7,6 +7,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useWishlist } from "../../context/WishlistContext";
 import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'react-native';
+import { formatPHP, stripNonNumeric } from "../../utils/formatters";
+import CalendarModal from "../../components/CalendarModal";
 
 const WishlistDetailHeader = ({ onBack }: { onBack: () => void }) => (
     <View className="px-8 pt-6 pb-4 flex-row justify-between items-center">
@@ -21,21 +23,26 @@ const WishlistDetailHeader = ({ onBack }: { onBack: () => void }) => (
 const WishlistItemDetail = () => {
     const { id } = useLocalSearchParams();
     const router = useRouter();
-    const { wishlistItems, updateItem } = useWishlist();
+    const { wishlistItems, updateItem, deleteItem } = useWishlist();
 
     // Find the item based on the ID from the route
     const item = wishlistItems.find(i => i.id === Number(id));
 
     const [name, setName] = useState(item?.name || "");
-    const [cost, setCost] = useState(item?.cost || "");
+    const [cost, setCost] = useState(""); // Display with commas
     const [targetDate, setTargetDate] = useState(item?.targetDate || "");
+    const [url, setUrl] = useState(item?.url || "");
+    const [calendarVisible, setCalendarVisible] = useState(false);
 
     // Update state if the ID changes or item updates
     useEffect(() => {
         if (item) {
             setName(item.name);
-            setCost(item.cost);
+            // Format cost with commas for display
+            const formattedCost = item.cost ? parseInt(item.cost).toLocaleString() : "";
+            setCost(formattedCost);
             setTargetDate(item.targetDate);
+            setUrl(item.url || "");
         }
     }, [id, item]);
 
@@ -70,13 +77,43 @@ const WishlistItemDetail = () => {
     };
 
     const handleSave = () => {
+        const numericCost = stripNonNumeric(cost);
         updateItem(item.id, {
             name,
-            cost,
+            cost: numericCost,
             targetDate,
-            price: `Php ${Number(cost).toLocaleString()}` // Standardized price update
+            url: url || undefined,
+            price: formatPHP(numericCost)
         });
         Alert.alert("Success", "Changes saved successfully!");
+    };
+
+    const handleCostChange = (text: string) => {
+        const numeric = stripNonNumeric(text);
+        if (!numeric) {
+            setCost("");
+            return;
+        }
+        const formatted = parseInt(numeric).toLocaleString();
+        setCost(formatted);
+    };
+
+    const handleDelete = () => {
+        Alert.alert(
+            "Delete Item",
+            `Are you sure you want to delete "${item.name}"?`,
+            [
+                { text: "Cancel", style: "cancel" },
+                {
+                    text: "Delete",
+                    style: "destructive",
+                    onPress: () => {
+                        deleteItem(item.id);
+                        router.push('/wishlist' as any);
+                    }
+                }
+            ]
+        );
     };
 
     return (
@@ -116,6 +153,19 @@ const WishlistItemDetail = () => {
                     <Text className="text-white font-bold">Edit</Text>
                 </View>
 
+                {/* URL Input */}
+                <View className="mt-8 bg-[#334155] rounded-full px-6 py-4 border border-[#90A1B9]/20">
+                    <TextInput
+                        className="text-white text-lg font-medium"
+                        placeholder="Product URL (Optional)..."
+                        placeholderTextColor="rgba(255, 255, 255, 0.5)"
+                        value={url}
+                        onChangeText={setUrl}
+                        autoCapitalize="none"
+                        keyboardType="url"
+                    />
+                </View>
+
                 {/* Info Fields */}
                 <View className="mt-8 gap-y-6">
                     <View className="flex-row items-center justify-between">
@@ -125,26 +175,25 @@ const WishlistItemDetail = () => {
                             <View className="w-[1px] h-4 bg-white/20 mx-2" />
                             <TextInput
                                 className="text-white text-lg flex-1"
-                                placeholder="0.00"
+                                placeholder="0"
                                 placeholderTextColor="rgba(255, 255, 255, 0.3)"
                                 keyboardType="numeric"
                                 value={cost}
-                                onChangeText={setCost}
+                                onChangeText={handleCostChange}
                             />
                         </View>
                     </View>
 
                     <View className="flex-row items-center justify-between">
                         <Text className="text-white text-2xl font-black">Target Date:</Text>
-                        <View className="bg-[#334155] rounded-full px-6 py-3 flex-1 ml-4 border border-[#90A1B9]/20 items-center">
-                            <TextInput
-                                className="text-white text-lg font-medium w-full text-center"
-                                placeholder="YYYY - MM - DD"
-                                placeholderTextColor="rgba(255, 255, 255, 0.3)"
-                                value={targetDate}
-                                onChangeText={setTargetDate}
-                            />
-                        </View>
+                        <Pressable
+                            onPress={() => setCalendarVisible(true)}
+                            className="bg-[#334155] rounded-full px-6 py-4 flex-1 ml-4 border border-[#90A1B9]/20 items-center justify-center"
+                        >
+                            <Text className={`text-lg font-medium ${targetDate ? 'text-white' : 'text-white/30'}`}>
+                                {targetDate || "YYYY - MM - DD"}
+                            </Text>
+                        </Pressable>
                     </View>
                 </View>
 
@@ -154,6 +203,14 @@ const WishlistItemDetail = () => {
                     className="mt-10 bg-[#6366F1] py-5 rounded-full items-center justify-center shadow-xl shadow-[#6366F1]/30"
                 >
                     <Text className="text-white text-xl font-black">SAVE CHANGES</Text>
+                </Pressable>
+
+                {/* Delete Button */}
+                <Pressable
+                    onPress={handleDelete}
+                    className="mt-4 bg-transparent py-5 rounded-full items-center justify-center border border-[#EF4444]"
+                >
+                    <Text className="text-[#EF4444] text-xl font-black">DELETE ITEM</Text>
                 </Pressable>
 
                 {/* Progress Section */}
@@ -180,7 +237,7 @@ const WishlistItemDetail = () => {
                 <View className="mt-10 mb-20">
                     <Text className="text-white text-2xl font-black mb-4">Contribution Commitment</Text>
                     <View className="bg-[#334155] rounded-[30px] p-8 border border-[#90A1B9]/20">
-                        {item.commitments.length > 0 ? item.commitments.map((commit, index) => (
+                        {item.commitments.length > 0 ? item.commitments.map((commit: any, index: number) => (
                             <View key={index} className="flex-row justify-between items-center mb-4">
                                 <Text className="text-white font-bold opacity-80">{commit.date}</Text>
                                 <Text className="text-[#4ADE80] font-bold">{commit.amount}</Text>
@@ -191,6 +248,13 @@ const WishlistItemDetail = () => {
                     </View>
                 </View>
             </ScrollView>
+
+            <CalendarModal
+                visible={calendarVisible}
+                onClose={() => setCalendarVisible(false)}
+                onSelectDate={setTargetDate}
+                currentDate={targetDate}
+            />
         </SafeAreaView>
     );
 };

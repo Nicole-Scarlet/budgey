@@ -8,6 +8,7 @@ export interface WishlistItem {
     color: string;
     icon: string;
     image?: string;
+    url?: string;
     commitments: { date: string; amount: string; }[];
 }
 

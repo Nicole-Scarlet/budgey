@@ -1,7 +1,7 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import * as React from "react";
-import { Pressable, ScrollView, Text, View, Dimensions, Image } from "react-native";
+import { Pressable, ScrollView, Text, View, Dimensions, Image, Alert, Linking } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useWishlist } from "../context/WishlistContext";
 
@@ -10,7 +10,40 @@ const COLUMN_WIDTH = (width - 64) / 2; // px-8 padding
 
 const WishlistPage = () => {
     const router = useRouter();
-    const { wishlistItems } = useWishlist();
+    const { wishlistItems, deleteItem } = useWishlist();
+
+    const handleDelete = (id: number, name: string) => {
+        Alert.alert(
+            "Delete Item",
+            `Are you sure you want to delete "${name}"?`,
+            [
+                { text: "Cancel", style: "cancel" },
+                {
+                    text: "Delete",
+                    style: "destructive",
+                    onPress: () => deleteItem(id)
+                }
+            ]
+        );
+    };
+
+    const handleOpenURL = (url?: string) => {
+        if (!url) {
+            Alert.alert("Link unavailable", "No product URL has been provided for this item.");
+            return;
+        }
+
+        // Ensure the URL has a protocol
+        const fullUrl = url.startsWith('http') ? url : `https://${url}`;
+
+        Linking.canOpenURL(fullUrl).then(supported => {
+            if (supported) {
+                Linking.openURL(fullUrl);
+            } else {
+                Alert.alert("Error", "Could not open this URL.");
+            }
+        });
+    };
 
     return (
         <SafeAreaView className="flex-1 bg-[#0F172B]">
@@ -64,9 +97,23 @@ const WishlistPage = () => {
                                 </Text>
                             </View>
 
-                            {/* Action Icon */}
-                            <View className="absolute bottom-4 right-4">
-                                <MaterialCommunityIcons name="open-in-new" size={20} color="#CBD5E1" />
+                            {/* Action Icons */}
+                            <View className="absolute bottom-4 right-4 flex-row items-center">
+                                <Pressable
+                                    onPress={() => handleDelete(item.id, item.name)}
+                                    className="mr-2"
+                                >
+                                    <MaterialCommunityIcons name="trash-can-outline" size={20} color="#EF4444" />
+                                </Pressable>
+                                <Pressable
+                                    onPress={() => handleOpenURL(item.url)}
+                                >
+                                    <MaterialCommunityIcons
+                                        name="open-in-new"
+                                        size={20}
+                                        color={item.url ? "#6366F1" : "#475569"}
+                                    />
+                                </Pressable>
                             </View>
                         </Pressable>
                     ))}

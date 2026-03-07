@@ -28,6 +28,7 @@ const WishlistAddPage = () => {
     const [cost, setCost] = useState(""); // This will store the number with commas for display
     const [targetDate, setTargetDate] = useState("");
     const [image, setImage] = useState<string | null>(null);
+    const [url, setUrl] = useState("");
     const [calendarVisible, setCalendarVisible] = useState(false);
 
     const pickImage = async () => {
@@ -72,6 +73,7 @@ const WishlistAddPage = () => {
             color: "#64748B", // Default color
             icon: "archive-outline", // Default icon
             image: image || undefined,
+            url: url || undefined,
             commitments: []
         });
 
@@ -125,6 +127,19 @@ const WishlistAddPage = () => {
                         placeholderTextColor="rgba(255, 255, 255, 0.5)"
                         value={name}
                         onChangeText={setName}
+                    />
+                </View>
+
+                {/* URL Input */}
+                <View className="mt-8 bg-[#334155] rounded-full px-6 py-4 border border-[#90A1B9]/20">
+                    <TextInput
+                        className="text-white text-lg font-medium"
+                        placeholder="Product URL (Optional)..."
+                        placeholderTextColor="rgba(255, 255, 255, 0.5)"
+                        value={url}
+                        onChangeText={setUrl}
+                        autoCapitalize="none"
+                        keyboardType="url"
                     />
                 </View>
 
