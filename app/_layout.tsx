@@ -14,27 +14,24 @@ const { width } = Dimensions.get('window');
 SplashScreen.preventAutoHideAsync();
 
 const CustomTabBarBackground = () => {
-    const notchRadius = 45;
-    const centerX = width / 2;
-    const height = 90;
-
-    // Path for a rectangle with a semicircular cutout in the center
-    const d = `
-    M 0 0
-    L ${centerX - notchRadius} 0
-    C ${centerX - notchRadius + 10} 0, ${centerX - 35} 35, ${centerX} 35
-    C ${centerX + 35} 35, ${centerX + notchRadius - 10} 0, ${centerX + notchRadius} 0
-    L ${width} 0
-    L ${width} ${height}
-    L 0 ${height}
-    Z
-  `;
-
     return (
-        <View style={{ position: 'absolute', bottom: 0 }}>
-            <Svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
-                <Path d={d} fill="#0F172B" />
-            </Svg>
+        <View style={{ position: 'absolute', bottom: 0, width: width, height: 90 }}>
+            {/* The hump */}
+            <View
+                style={{
+                    position: 'absolute',
+                    top: -20,
+                    left: width / 2 - 45,
+                    width: 90,
+                    height: 90,
+                    borderRadius: 45,
+                    backgroundColor: '#0F172B',
+                    borderWidth: 1,
+                    borderColor: 'rgba(148, 163, 184, 0.1)'
+                }}
+            />
+            {/* The main bar */}
+            <View style={{ flex: 1, backgroundColor: '#0F172B' }} />
         </View>
     );
 };
@@ -68,13 +65,17 @@ export default function RootLayout() {
                         },
                         tabBarBackground: () => <CustomTabBarBackground />,
                         headerShown: false,
+                        tabBarLabelStyle: {
+                            fontWeight: '700',
+                            fontSize: 10,
+                        }
                     }}>
                     <Tabs.Screen
                         name="index"
                         options={{
                             title: 'Home',
                             tabBarIcon: ({ color, size }) => (
-                                <Ionicons name="home-outline" size={size} color={color} />
+                                <Ionicons name="home-outline" size={size + 2} color={color} />
                             ),
                         }}
                     />
@@ -83,7 +84,7 @@ export default function RootLayout() {
                         options={{
                             title: 'Summary',
                             tabBarIcon: ({ color, size }) => (
-                                <MaterialCommunityIcons name="wallet-outline" size={size} color={color} />
+                                <MaterialCommunityIcons name="clipboard-text-outline" size={size + 2} color={color} />
                             ),
                         }}
                     />
@@ -91,45 +92,26 @@ export default function RootLayout() {
                         name="scanner"
                         options={{
                             title: '',
-                            tabBarIcon: ({ focused }) => {
-                                const isScannerScreen = pathname === '/scanner';
-
-                                if (isScannerScreen) {
-                                    return (
-                                        <View
-                                            style={{
-                                                top: -35,
-                                                shadowColor: '#000',
-                                                shadowOffset: { width: 0, height: 10 },
-                                                shadowOpacity: 0.3,
-                                                shadowRadius: 10,
-                                                elevation: 10,
-                                            }}
-                                            className="w-[75px] h-[75px] rounded-full items-center justify-center border-2 border-white bg-transparent"
-                                        >
-                                            <View className="w-[62px] h-[62px] bg-white/10 rounded-full items-center justify-center">
-                                                <View className="w-[54px] h-[54px] bg-[#0F172B] rounded-full" />
-                                            </View>
-                                        </View>
-                                    );
-                                }
-
-                                return (
-                                    <View
-                                        style={{
-                                            top: -25,
-                                            shadowColor: '#000',
-                                            shadowOffset: { width: 0, height: 5 },
-                                            shadowOpacity: 0.2,
-                                            shadowRadius: 5,
-                                            elevation: 5,
-                                        }}
-                                        className="bg-[#0F172B] w-[60px] h-[60px] rounded-full items-center justify-center"
-                                    >
-                                        <MaterialCommunityIcons name="crop-free" size={30} color="#CBD5E1" />
-                                    </View>
-                                );
-                            },
+                            tabBarIcon: ({ color, size }) => (
+                                <View style={{
+                                    backgroundColor: '#1E293B',
+                                    width: 60,
+                                    height: 60,
+                                    borderRadius: 30,
+                                    marginTop: -35,
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    borderWidth: 1,
+                                    borderColor: 'rgba(148, 163, 184, 0.2)',
+                                    shadowColor: '#000',
+                                    shadowOffset: { width: 0, height: 4 },
+                                    shadowOpacity: 0.3,
+                                    shadowRadius: 5,
+                                    elevation: 8
+                                }}>
+                                    <MaterialCommunityIcons name="crop-free" size={size + 8} color="white" />
+                                </View>
+                            ),
                         }}
                     />
                     <Tabs.Screen
@@ -137,7 +119,7 @@ export default function RootLayout() {
                         options={{
                             title: 'Analytics',
                             tabBarIcon: ({ color, size }) => (
-                                <Ionicons name="bar-chart-outline" size={size} color={color} />
+                                <MaterialCommunityIcons name="trending-up" size={size + 4} color={color} />
                             ),
                         }}
                     />
@@ -146,12 +128,16 @@ export default function RootLayout() {
                         options={{
                             title: 'Settings',
                             tabBarIcon: ({ color, size }) => (
-                                <Ionicons name="settings-outline" size={size} color={color} />
+                                <Ionicons name="settings-outline" size={size + 2} color={color} />
                             ),
                         }}
                     />
 
                     {/* Hidden Screens */}
+                    <Tabs.Screen name="(tabs)/index" options={{ href: null }} />
+                    <Tabs.Screen name="(tabs)/intro" options={{ href: null }} />
+                    <Tabs.Screen name="components/CircularProgress" options={{ href: null }} />
+                    <Tabs.Screen name="components/CustomDesign" options={{ href: null }} />
                     <Tabs.Screen name="wishlist/[id]" options={{ href: null }} />
                     <Tabs.Screen name="wishlist/add" options={{ href: null }} />
                     <Tabs.Screen name="home" options={{ href: null }} />

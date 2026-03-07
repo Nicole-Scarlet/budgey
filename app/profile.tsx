@@ -144,9 +144,9 @@ const ProfileSettings = () => {
 
                         <Pressable
                             onPress={() => router.back()}
-                            className="w-full h-16 rounded-3xl items-center justify-center mt-2"
+                            className="w-full h-16 rounded-[25px] items-center justify-center mt-6 border border-[#94A3B8]/20 bg-[#334155]/30 active:opacity-70"
                         >
-                            <Text className="text-slate-500 text-lg font-medium">Cancel</Text>
+                            <Text className="text-slate-400 text-xl font-bold">Cancel</Text>
                         </Pressable>
                     </View>
                 </ScrollView>

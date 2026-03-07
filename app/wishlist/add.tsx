@@ -5,6 +5,10 @@ import { useState } from "react";
 import { Pressable, ScrollView, Text, View, TextInput, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useWishlist } from "../../context/WishlistContext";
+import { formatPHP, stripNonNumeric } from "../../utils/formatters";
+import CalendarModal from "../../components/CalendarModal";
+import * as ImagePicker from 'expo-image-picker';
+import { Image } from 'react-native';
 
 const WishlistAddHeader = ({ onBack }: { onBack: () => void }) => (
     <View className="px-8 pt-6 pb-4 flex-row justify-between items-center">
@@ -18,11 +22,32 @@ const WishlistAddHeader = ({ onBack }: { onBack: () => void }) => (
 
 const WishlistAddPage = () => {
     const router = useRouter();
-    const { addItem: _addItem } = useWishlist(); // Destructured with underscore to mark as unused
+    const { addItem } = useWishlist();
 
     const [name, setName] = useState("");
-    const [cost, setCost] = useState("");
+    const [cost, setCost] = useState(""); // This will store the number with commas for display
     const [targetDate, setTargetDate] = useState("");
+    const [image, setImage] = useState<string | null>(null);
+    const [calendarVisible, setCalendarVisible] = useState(false);
+
+    const pickImage = async () => {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+            Alert.alert('Permission Denied', 'Sorry, we need camera roll permissions to make this work!');
+            return;
+        }
+
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            aspect: [4, 5],
+            quality: 1,
+        });
+
+        if (!result.canceled) {
+            setImage(result.assets[0].uri);
+        }
+    };
 
     const handleSave = () => {
         if (!name || !cost) {
@@ -30,12 +55,40 @@ const WishlistAddPage = () => {
             return;
         }
 
-        // Item addition is disabled as per user request
-        // The UI and Alerts are kept for demonstration purposes
+        const numericCost = stripNonNumeric(cost);
+
+        // Standardize date format if it's incomplete or missing
+        let finalDate = targetDate;
+        if (!finalDate || finalDate.length < 10) {
+            finalDate = new Date().toISOString().split('T')[0].split('-').join(' - ');
+        }
+
+        addItem({
+            name,
+            cost: numericCost,
+            price: formatPHP(numericCost),
+            targetDate: finalDate,
+            progress: 0,
+            color: "#64748B", // Default color
+            icon: "archive-outline", // Default icon
+            image: image || undefined,
+            commitments: []
+        });
 
         Alert.alert("Success", "Item added to wishlist!", [
             { text: "OK", onPress: () => router.back() }
         ]);
+    };
+
+    const handleCostChange = (text: string) => {
+        // Only allow numbers, automatically add commas
+        const numeric = stripNonNumeric(text);
+        if (!numeric) {
+            setCost("");
+            return;
+        }
+        const formatted = parseInt(numeric).toLocaleString();
+        setCost(formatted);
     };
 
     return (
@@ -43,14 +96,23 @@ const WishlistAddPage = () => {
             <WishlistAddHeader onBack={() => router.push('/wishlist' as any)} />
 
             <ScrollView className="flex-1 px-8" showsVerticalScrollIndicator={false}>
-                {/* Image Upload Placeholder */}
+                {/* Image Upload Area */}
                 <View className="items-center mt-6">
-                    <Pressable className="w-[280px] h-[320px] bg-[#334155] rounded-[40px] items-center justify-center border-2 border-dashed border-[#90A1B9]/30">
-                        <Ionicons name="image-outline" size={60} color="#90A1B9" />
-                        <Text className="text-[#90A1B9] mt-4 font-bold">Upload Image</Text>
+                    <Pressable
+                        onPress={pickImage}
+                        className="w-[280px] h-[320px] bg-[#334155] rounded-[40px] items-center justify-center border-2 border-dashed border-[#90A1B9]/30 overflow-hidden"
+                    >
+                        {image ? (
+                            <Image source={{ uri: image }} className="w-full h-full" />
+                        ) : (
+                            <>
+                                <Ionicons name="image-outline" size={60} color="#90A1B9" />
+                                <Text className="text-[#90A1B9] mt-4 font-bold">Upload Image</Text>
+                            </>
+                        )}
 
                         <View className="absolute top-4 right-4 bg-[#6366F1] w-16 h-16 rounded-full items-center justify-center border-4 border-[#334155]">
-                            <Ionicons name="add" size={40} color="white" />
+                            <Ionicons name={image ? "create" : "add"} size={40} color="white" />
                         </View>
                     </Pressable>
                 </View>
@@ -74,26 +136,25 @@ const WishlistAddPage = () => {
                             <View className="w-[1px] h-4 bg-white/20 mx-2" />
                             <TextInput
                                 className="text-white text-lg flex-1"
-                                placeholder="0.00"
+                                placeholder="0"
                                 placeholderTextColor="rgba(255, 255, 255, 0.3)"
                                 keyboardType="numeric"
                                 value={cost}
-                                onChangeText={setCost}
+                                onChangeText={handleCostChange}
                             />
                         </View>
                     </View>
 
                     <View className="flex-row items-center justify-between">
                         <Text className="text-white text-2xl font-black">Target Date:</Text>
-                        <View className="bg-[#334155] rounded-full px-6 py-4 flex-1 ml-4 border border-[#90A1B9]/20 items-center">
-                            <TextInput
-                                className="text-white text-lg font-medium w-full text-center"
-                                placeholder="YYYY - MM - DD"
-                                placeholderTextColor="rgba(255, 255, 255, 0.3)"
-                                value={targetDate}
-                                onChangeText={setTargetDate}
-                            />
-                        </View>
+                        <Pressable
+                            onPress={() => setCalendarVisible(true)}
+                            className="bg-[#334155] rounded-full px-6 py-4 flex-1 ml-4 border border-[#90A1B9]/20 items-center justify-center"
+                        >
+                            <Text className={`text-lg font-medium ${targetDate ? 'text-white' : 'text-white/30'}`}>
+                                {targetDate || "YYYY - MM - DD"}
+                            </Text>
+                        </Pressable>
                     </View>
                 </View>
 
@@ -107,6 +168,13 @@ const WishlistAddPage = () => {
 
                 <View className="h-20" />
             </ScrollView>
+
+            <CalendarModal
+                visible={calendarVisible}
+                onClose={() => setCalendarVisible(false)}
+                onSelectDate={setTargetDate}
+                currentDate={targetDate}
+            />
         </SafeAreaView>
     );
 };

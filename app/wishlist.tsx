@@ -1,7 +1,7 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import * as React from "react";
-import { Pressable, ScrollView, Text, View, Dimensions } from "react-native";
+import { Pressable, ScrollView, Text, View, Dimensions, Image } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useWishlist } from "../context/WishlistContext";
 
@@ -37,17 +37,21 @@ const WishlistPage = () => {
                             style={{ width: COLUMN_WIDTH }}
                             className="bg-[#334155] mb-6 p-4 rounded-[25px] border border-[#90A1B9]/30 shadow-lg active:opacity-70"
                         >
-                            {/* Placeholder Container */}
+                            {/* Visual Container (Image or Icon) */}
                             <View
                                 style={{ backgroundColor: item.color }}
                                 className="aspect-square rounded-2xl overflow-hidden mb-4 items-center justify-center border border-[#90A1B9]/20"
                             >
-                                <MaterialCommunityIcons
-                                    name={item.icon as any}
-                                    size={COLUMN_WIDTH * 0.45}
-                                    color="white"
-                                    style={{ opacity: 0.9 }}
-                                />
+                                {item.image ? (
+                                    <Image source={{ uri: item.image }} className="w-full h-full" />
+                                ) : (
+                                    <MaterialCommunityIcons
+                                        name={item.icon as any}
+                                        size={COLUMN_WIDTH * 0.45}
+                                        color="white"
+                                        style={{ opacity: 0.9 }}
+                                    />
+                                )}
                             </View>
 
                             {/* Info */}

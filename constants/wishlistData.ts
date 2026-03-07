@@ -7,6 +7,7 @@ export interface WishlistItem {
     progress: number;
     color: string;
     icon: string;
+    image?: string;
     commitments: { date: string; amount: string; }[];
 }
 
@@ -81,7 +82,7 @@ export const wishlistItems: WishlistItem[] = [
     {
         id: 6,
         name: "Ferrari Jacket",
-        price: "4,000",
+        price: "Php 4,000",
         cost: "0",
         targetDate: "2026 - 12 - 31",
         progress: 0,

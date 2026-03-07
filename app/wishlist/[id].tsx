@@ -5,6 +5,8 @@ import { useState, useEffect } from "react";
 import { Pressable, ScrollView, Text, View, TextInput, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useWishlist } from "../../context/WishlistContext";
+import * as ImagePicker from 'expo-image-picker';
+import { Image } from 'react-native';
 
 const WishlistDetailHeader = ({ onBack }: { onBack: () => void }) => (
     <View className="px-8 pt-6 pb-4 flex-row justify-between items-center">
@@ -48,12 +50,31 @@ const WishlistItemDetail = () => {
         );
     }
 
+    const pickImage = async () => {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+            Alert.alert('Permission Denied', 'Sorry, we need camera roll permissions to make this work!');
+            return;
+        }
+
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            aspect: [4, 5],
+            quality: 1,
+        });
+
+        if (!result.canceled) {
+            updateItem(item.id, { image: result.assets[0].uri });
+        }
+    };
+
     const handleSave = () => {
         updateItem(item.id, {
             name,
             cost,
             targetDate,
-            price: `Php ${cost}` // Simple price update for the grid
+            price: `Php ${Number(cost).toLocaleString()}` // Standardized price update
         });
         Alert.alert("Success", "Changes saved successfully!");
     };
@@ -65,17 +86,22 @@ const WishlistItemDetail = () => {
             <ScrollView className="flex-1 px-8" showsVerticalScrollIndicator={false}>
                 {/* Image Section */}
                 <View className="items-center mt-6">
-                    <View
+                    <Pressable
+                        onPress={pickImage}
                         style={{ backgroundColor: item.color }}
                         className="w-[280px] h-[320px] rounded-[40px] items-center justify-center relative overflow-hidden shadow-2xl border border-[#90A1B9]/20"
                     >
-                        <MaterialCommunityIcons name={item.icon as any} size={120} color="white" style={{ opacity: 0.8 }} />
+                        {item.image ? (
+                            <Image source={{ uri: item.image }} className="w-full h-full" />
+                        ) : (
+                            <MaterialCommunityIcons name={item.icon as any} size={120} color="white" style={{ opacity: 0.8 }} />
+                        )}
 
                         {/* Add overlay icon like screenshot */}
                         <View className="absolute top-4 right-4 bg-[#6366F1] w-16 h-16 rounded-full items-center justify-center border-4 border-[#334155]">
-                            <Ionicons name="add" size={40} color="white" />
+                            <Ionicons name={item.image ? "create" : "add"} size={40} color="white" />
                         </View>
-                    </View>
+                    </Pressable>
                 </View>
 
                 {/* Edit Name Bar */}
