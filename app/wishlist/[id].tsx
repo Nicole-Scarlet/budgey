@@ -76,6 +76,36 @@ const WishlistItemDetail = () => {
         }
     };
 
+    const takePhoto = async () => {
+        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+        if (status !== 'granted') {
+            Alert.alert('Permission Denied', 'Sorry, we need camera permissions to make this work!');
+            return;
+        }
+
+        const result = await ImagePicker.launchCameraAsync({
+            allowsEditing: true,
+            aspect: [4, 5],
+            quality: 1,
+        });
+
+        if (!result.canceled) {
+            updateItem(item.id, { image: result.assets[0].uri });
+        }
+    };
+
+    const handleImageChoice = () => {
+        Alert.alert(
+            "Change Item Photo",
+            "Choose an option",
+            [
+                { text: "Take Photo", onPress: takePhoto },
+                { text: "Choose from Gallery", onPress: pickImage },
+                { text: "Cancel", style: "cancel" }
+            ]
+        );
+    };
+
     const handleSave = () => {
         const numericCost = stripNonNumeric(cost);
         updateItem(item.id, {
@@ -124,7 +154,7 @@ const WishlistItemDetail = () => {
                 {/* Image Section */}
                 <View className="items-center mt-6">
                     <Pressable
-                        onPress={pickImage}
+                        onPress={handleImageChoice}
                         style={{ backgroundColor: item.color }}
                         className="w-[280px] h-[320px] rounded-[40px] items-center justify-center relative overflow-hidden shadow-2xl border border-[#90A1B9]/20"
                     >

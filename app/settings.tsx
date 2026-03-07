@@ -2,7 +2,7 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import * as React from "react";
 import { useProfile } from "../context/ProfileContext";
-import { Pressable, ScrollView, Text, View, Switch } from "react-native";
+import { Pressable, ScrollView, Text, View, Switch, Image } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const SettingsPage = () => {
@@ -30,7 +30,11 @@ const SettingsPage = () => {
                 <View className="items-center mt-2 mb-8">
                     <View className="relative">
                         <View className="w-32 h-32 bg-[#334155] rounded-full border-2 border-[#90A1B9] items-center justify-center overflow-hidden">
-                            <Ionicons name="person" size={64} color="#90A1B9" />
+                            {profile.image ? (
+                                <Image source={{ uri: profile.image }} className="w-full h-full" />
+                            ) : (
+                                <Ionicons name="person" size={64} color="#90A1B9" />
+                            )}
                         </View>
                         <Pressable
                             onPress={() => router.push("/profile" as any)}
@@ -67,7 +71,7 @@ const SettingsPage = () => {
                             <View className="w-10 h-10 bg-slate-700/50 rounded-xl items-center justify-center">
                                 <MaterialCommunityIcons name="weather-sunny" size={22} color="white" />
                             </View>
-                            <Text className="text-white text-lg font-medium">Albino Mode</Text>
+                            <Text className="text-white text-lg font-medium">Light Mode</Text>
                         </View>
                         <Switch
                             trackColor={{ false: "#1E293B", true: "#90A1B9" }}

@@ -6,6 +6,7 @@ interface ProfileData {
     email: string;
     phone: string;
     password: string;
+    image?: string;
 }
 
 interface ProfileContextType {

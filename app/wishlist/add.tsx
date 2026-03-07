@@ -50,6 +50,36 @@ const WishlistAddPage = () => {
         }
     };
 
+    const takePhoto = async () => {
+        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+        if (status !== 'granted') {
+            Alert.alert('Permission Denied', 'Sorry, we need camera permissions to make this work!');
+            return;
+        }
+
+        const result = await ImagePicker.launchCameraAsync({
+            allowsEditing: true,
+            aspect: [4, 5],
+            quality: 1,
+        });
+
+        if (!result.canceled) {
+            setImage(result.assets[0].uri);
+        }
+    };
+
+    const handleImageChoice = () => {
+        Alert.alert(
+            "Add Item Photo",
+            "Choose an option",
+            [
+                { text: "Take Photo", onPress: takePhoto },
+                { text: "Choose from Gallery", onPress: pickImage },
+                { text: "Cancel", style: "cancel" }
+            ]
+        );
+    };
+
     const handleSave = () => {
         if (!name || !cost) {
             Alert.alert("Error", "Please fill in the item name and cost.");
@@ -101,7 +131,7 @@ const WishlistAddPage = () => {
                 {/* Image Upload Area */}
                 <View className="items-center mt-6">
                     <Pressable
-                        onPress={pickImage}
+                        onPress={handleImageChoice}
                         className="w-[280px] h-[320px] bg-[#334155] rounded-[40px] items-center justify-center border-2 border-dashed border-[#90A1B9]/30 overflow-hidden"
                     >
                         {image ? (
