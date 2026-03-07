@@ -24,7 +24,9 @@ export default function TabLayout() {
           shadowOpacity: 0,
           borderBottomWidth: 1, // Keep your border
           borderBottomColor: "#334155",
+          height: 64,
         } as any,
+        headerStatusBarHeight: undefined,
         headerShadowVisible: false, // THIS is the key to stopping the "early" clipping
         headerTransparent: false,
         headerBackground: () => (
@@ -62,6 +64,7 @@ export default function TabLayout() {
         name="scanner"
         options={{
           title: "Scanner",
+          headerShown: false,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="scan-outline" size={size} color={color} />
           ),

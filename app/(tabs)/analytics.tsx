@@ -248,11 +248,11 @@ export default function AnalyticsScreen() {
               impact on your workflow.
             </Text>
             <TouchableOpacity
-              className="rounded-full py-4 items-center"
-              style={{ backgroundColor: '#475569' }}
+              className="rounded-full py-4 items-center bg-[#6366F1]"
               activeOpacity={0.8}
+              onPress={() => router.push('/aichatbot' as any)}
             >
-              <Text className="text-white font-bold text-base">AI Analytics</Text>
+              <Text className="text-white font-bold text-base">Chat with AI Assistant</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>

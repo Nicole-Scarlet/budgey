@@ -102,7 +102,7 @@ export default function HomeScreen() {
                   67
                 </Text>
               </View>
-              <TouchableOpacity>
+              <TouchableOpacity onPress={() => router.push('/wishlist' as any)}>
                 <Ionicons name="heart-outline" size={24} color="white" />
               </TouchableOpacity>
             </View>

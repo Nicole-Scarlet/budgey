@@ -261,7 +261,7 @@ export default function DebtScreen() {
               {/* Header Section */}
               <TouchableOpacity
                 className="items-center pt-10 pb-8 px-7"
-                onPress={() => router.push("/budget")}
+                onPress={() => router.push("../budget")}
               >
                 <Text className="text-white text-5xl font-extrabold tracking-tight mb-1 text-center">
                   {formatCurrency(budget)}

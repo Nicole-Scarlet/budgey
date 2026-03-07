@@ -19,6 +19,8 @@ import { useEffect } from "react";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { SQLiteProvider, type SQLiteDatabase } from "expo-sqlite";
 import { FinanceProvider } from "../context/FinanceContext";
+import { ProfileProvider } from "../context/ProfileContext";
+import { WishlistProvider } from "../context/WishlistContext";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -76,26 +78,62 @@ export default function RootLayout() {
 
       -- Initialize default budget if not exists
       INSERT OR IGNORE INTO settings (key, value) VALUES ('budget', '0');
+
+      CREATE TABLE IF NOT EXISTS profile (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        firstName TEXT,
+        lastName TEXT,
+        email TEXT,
+        phone TEXT,
+        password TEXT
+      );
+
+      INSERT OR IGNORE INTO profile (id, firstName, lastName, email, phone, password)
+      VALUES (1, 'Ryan Reimann', 'Layno', 'ryan.layno@example.com', '0917 123 4567', 'password123');
+
+      DROP TABLE IF EXISTS wishlist;
+
+      CREATE TABLE IF NOT EXISTS wishlist (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        price TEXT,
+        color TEXT,
+        icon TEXT,
+        cost TEXT,
+        targetDate TEXT,
+        progress INTEGER DEFAULT 0,
+        commitments TEXT DEFAULT '[]'
+      );
     `);
   };
 
   return (
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
       <SQLiteProvider databaseName="test.db" onInit={createDbIfNeeded}>
-        <FinanceProvider>
-          <Stack>
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen
-              name="budget"
-              options={{
-                presentation: "modal",
-                headerShown: false,
-                animation: "slide_from_bottom",
-              }}
-            />
-          </Stack>
-          <StatusBar style="auto" />
-        </FinanceProvider>
+        <ProfileProvider>
+          <FinanceProvider>
+            <WishlistProvider>
+              <Stack>
+                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                <Stack.Screen name="edit-profile" options={{ headerShown: false }} />
+                <Stack.Screen name="privacy" options={{ headerShown: false }} />
+                <Stack.Screen name="security" options={{ headerShown: false }} />
+                <Stack.Screen name="support" options={{ headerShown: false }} />
+                <Stack.Screen name="terms" options={{ headerShown: false }} />
+                <Stack.Screen name="wishlist" options={{ headerShown: false }} />
+                <Stack.Screen
+                  name="budget"
+                  options={{
+                    presentation: "modal",
+                    headerShown: false,
+                    animation: "slide_from_bottom",
+                  }}
+                />
+              </Stack>
+              <StatusBar style="auto" />
+            </WishlistProvider>
+          </FinanceProvider>
+        </ProfileProvider>
       </SQLiteProvider>
     </ThemeProvider>
   );
