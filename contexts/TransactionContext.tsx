@@ -12,6 +12,8 @@ export interface Transaction {
     categoryId?: string;
 }
 
+export type GoalPeriod = 'Daily' | 'Weekly' | 'Monthly';
+
 export interface Category {
     id: string;
     name: string;
@@ -31,14 +33,24 @@ interface TransactionContextData {
     getTotalByType: (type: TransactionType) => number;
     savingsGoal: number;
     setSavingsGoal: (goal: number) => void;
+    savingsGoalPeriod: GoalPeriod;
+    setSavingsGoalPeriod: (period: GoalPeriod) => void;
     expenseGoal: number;
     setExpenseGoal: (goal: number) => void;
+    expenseGoalPeriod: GoalPeriod;
+    setExpenseGoalPeriod: (period: GoalPeriod) => void;
     debtLimit: number;
     setDebtLimit: (limit: number) => void;
+    debtLimitPeriod: GoalPeriod;
+    setDebtLimitPeriod: (period: GoalPeriod) => void;
     investmentLimit: number;
     setInvestmentLimit: (limit: number) => void;
+    investmentLimitPeriod: GoalPeriod;
+    setInvestmentLimitPeriod: (period: GoalPeriod) => void;
     incomeGoal: number;
     setIncomeGoal: (goal: number) => void;
+    incomeGoalPeriod: GoalPeriod;
+    setIncomeGoalPeriod: (period: GoalPeriod) => void;
     categories: Category[];
     addCategory: (category: Omit<Category, 'id'>) => void;
     updateCategory: (id: string, category: Partial<Category>) => void;
@@ -61,10 +73,15 @@ export const TransactionProvider: React.FC<TransactionProviderProps> = ({ childr
     // We'll start with an empty array. Later, this could be loaded from AsyncStorage/a database.
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [savingsGoal, setSavingsGoal] = useState<number>(0);
+    const [savingsGoalPeriod, setSavingsGoalPeriod] = useState<GoalPeriod>('Monthly');
     const [expenseGoal, setExpenseGoal] = useState<number>(0);
+    const [expenseGoalPeriod, setExpenseGoalPeriod] = useState<GoalPeriod>('Monthly');
     const [debtLimit, setDebtLimit] = useState<number>(0);
+    const [debtLimitPeriod, setDebtLimitPeriod] = useState<GoalPeriod>('Monthly');
     const [investmentLimit, setInvestmentLimit] = useState<number>(0);
+    const [investmentLimitPeriod, setInvestmentLimitPeriod] = useState<GoalPeriod>('Monthly');
     const [incomeGoal, setIncomeGoal] = useState<number>(0);
+    const [incomeGoalPeriod, setIncomeGoalPeriod] = useState<GoalPeriod>('Monthly');
     const [categories, setCategories] = useState<Category[]>([]);
     const [budget, setBudget] = useState<number>(0);
 
@@ -133,14 +150,24 @@ export const TransactionProvider: React.FC<TransactionProviderProps> = ({ childr
                 getTotalByType,
                 savingsGoal,
                 setSavingsGoal,
+                savingsGoalPeriod,
+                setSavingsGoalPeriod,
                 expenseGoal,
                 setExpenseGoal,
+                expenseGoalPeriod,
+                setExpenseGoalPeriod,
                 debtLimit,
                 setDebtLimit,
+                debtLimitPeriod,
+                setDebtLimitPeriod,
                 investmentLimit,
                 setInvestmentLimit,
+                investmentLimitPeriod,
+                setInvestmentLimitPeriod,
                 incomeGoal,
                 setIncomeGoal,
+                incomeGoalPeriod,
+                setIncomeGoalPeriod,
                 categories,
                 addCategory,
                 updateCategory,

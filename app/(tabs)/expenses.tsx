@@ -13,18 +13,23 @@ export default function ExpensesScreen() {
         getTransactionsByType,
         getTotalByType,
         transactions,
-        categories,
+        categories: globalCategories,
         expenseGoal,
         setExpenseGoal,
+        expenseGoalPeriod,
+        setExpenseGoalPeriod,
         deleteTransaction
     } = useTransactions();
     const [isCategoryMenuVisible, setIsCategoryMenuVisible] = useState(false);
+    const [isTimeFilterVisible, setIsTimeFilterVisible] = useState(false);
     const [isGoalModalVisible, setIsGoalModalVisible] = useState(false);
     const [tempGoal, setTempGoal] = useState('');
+    const [tempPeriod, setTempPeriod] = useState<'Daily' | 'Weekly' | 'Monthly'>(expenseGoalPeriod || 'Monthly');
     const [headerHeight, setHeaderHeight] = useState(360); // Default fallback height
     const [containerHeight, setContainerHeight] = useState(800);
+    const [activeFilter, setActiveFilter] = useState<'Daily' | 'Weekly' | 'Monthly' | 'All'>('All');
 
-    const mainCategories = [
+    const categories = [
         { name: 'Expenses', icon: 'cart-outline', type: 'material', active: true },
         { name: 'Income', icon: 'wallet-outline', type: 'material' },
         { name: 'Savings', icon: 'piggy-bank-outline', type: 'material' },
@@ -32,8 +37,29 @@ export default function ExpensesScreen() {
         { name: 'Investment', icon: 'chart-line-variant', type: 'material' },
     ];
 
-    const expenseTransactions = getTransactionsByType('expense');
-    const totalExpense = getTotalByType('expense');
+    const isTransactionInActiveFilter = (transactionDateRaw: string) => {
+        if (activeFilter === 'All') return true;
+
+        const now = new Date();
+        const transactionDate = new Date(transactionDateRaw);
+
+        switch (activeFilter) {
+            case 'Daily':
+                return transactionDate.toDateString() === now.toDateString();
+            case 'Weekly':
+                const diffTime = Math.abs(now.getTime() - transactionDate.getTime());
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                return diffDays <= 7;
+            case 'Monthly':
+                return transactionDate.getMonth() === now.getMonth() &&
+                    transactionDate.getFullYear() === now.getFullYear();
+            default:
+                return true;
+        }
+    };
+
+    const expenseTransactions = getTransactionsByType('expense').filter(t => isTransactionInActiveFilter(t.date));
+    const totalExpense = expenseTransactions.reduce((acc, curr) => acc + curr.amount, 0);
 
     // Bottom sheet setup
     const { bottom, top } = useSafeAreaInsets();
@@ -102,12 +128,12 @@ export default function ExpensesScreen() {
                         <Text className="text-white text-[42px] font-bold tracking-tight">{formatCurrency(totalExpense)}</Text>
                         <Text className="text-white/80 text-lg font-medium mt-2 mb-2">Overall Expenses</Text>
                         {expenseGoal > 0 ? (
-                            <Pressable onPress={() => { setTempGoal(expenseGoal.toString()); setIsGoalModalVisible(true); }} className="bg-[#1E293B] px-4 py-2 rounded-full border border-[#90A1B9]/30">
-                                <Text className="text-[#EF4444] font-medium text-sm">Limit: ₱{expenseGoal.toLocaleString('en-US', { minimumFractionDigits: 2 })} (Edit)</Text>
+                            <Pressable onPress={() => { setTempGoal(expenseGoal.toString()); setTempPeriod(expenseGoalPeriod); setIsGoalModalVisible(true); }} className="bg-[#1E293B] px-4 py-2 rounded-full border border-[#90A1B9]/30">
+                                <Text className="text-[#F97316] font-medium text-sm">Limit: ₱{expenseGoal.toLocaleString('en-US', { minimumFractionDigits: 2 })} / {expenseGoalPeriod} (Edit)</Text>
                             </Pressable>
                         ) : (
-                            <Pressable onPress={() => { setTempGoal(''); setIsGoalModalVisible(true); }} className="bg-[#1E293B] px-4 py-2 rounded-full border border-[#90A1B9]/30">
-                                <Text className="text-[#EF4444] font-medium text-sm">+ Set Expense Limit</Text>
+                            <Pressable onPress={() => { setTempGoal(''); setTempPeriod('Monthly'); setIsGoalModalVisible(true); }} className="bg-[#1E293B] px-4 py-2 rounded-full border border-[#90A1B9]/30">
+                                <Text className="text-[#F97316] font-medium text-sm">+ Set Expense Limit</Text>
                             </Pressable>
                         )}
                     </Pressable>
@@ -116,7 +142,7 @@ export default function ExpensesScreen() {
                 {/* Category Icons Row */}
                 <View className="px-4 py-6">
                     <View className="flex-row justify-between w-full px-2">
-                        {mainCategories.map((cat, index) => (
+                        {categories.map((cat, index) => (
                             <View key={index} className="items-center">
                                 <Pressable
                                     onPress={() => {
@@ -201,10 +227,40 @@ export default function ExpensesScreen() {
                 backgroundStyle={{ backgroundColor: '#1E293B', borderRadius: 24, shadowColor: '#000', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.25, shadowRadius: 10, elevation: 10 }}
                 handleIndicatorStyle={{ backgroundColor: '#64748B', width: 40 }}
             >
-                <View className="px-6 pt-4 pb-2 flex-row justify-between items-center">
+                <View className="px-6 pt-4 pb-2 flex-row justify-between items-center relative z-50">
                     <View>
-                        <Text className="text-white text-2xl font-bold font-['Inter_700Bold']">Expenses</Text>
-                        <Text className="text-[#94A3B8] text-sm mt-1">{new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</Text>
+                        <View className="flex-row items-center mb-1">
+                            <Text className="text-white text-2xl font-bold font-['Inter_700Bold'] mr-3">Expenses</Text>
+
+                            {/* Filter Dropdown Trigger Option 2 */}
+                            <Pressable
+                                onPress={() => setIsTimeFilterVisible(!isTimeFilterVisible)}
+                                className="bg-[#334155] px-3 py-1.5 rounded-full flex-row items-center border border-[#475569]"
+                            >
+                                <Text className="text-slate-300 text-xs font-bold mr-1">{activeFilter}</Text>
+                                <Feather name="chevron-down" size={14} color="#CBD5E1" />
+                            </Pressable>
+
+                            {/* Simple Dropdown Menu for Option 2 */}
+                            {isTimeFilterVisible && (
+                                <View className="absolute top-10 left-[110px] bg-[#475569] shadow-2xl rounded-xl border border-[#64748B] overflow-hidden w-32 z-50">
+                                    {['All', 'Daily', 'Weekly', 'Monthly'].map((filter) => (
+                                        <Pressable
+                                            key={filter}
+                                            onPress={() => {
+                                                setActiveFilter(filter as any);
+                                                setIsTimeFilterVisible(false);
+                                            }}
+                                            className={`px-4 py-3 border-b border-[#334155]/30 flex-row items-center justify-between ${activeFilter === filter ? 'bg-[#334155]' : ''}`}
+                                        >
+                                            <Text className={`text-sm ${activeFilter === filter ? 'text-white font-bold' : 'text-slate-300'}`}>{filter}</Text>
+                                            {activeFilter === filter && <Feather name="check" size={14} color="#4ADE80" />}
+                                        </Pressable>
+                                    ))}
+                                </View>
+                            )}
+                        </View>
+                        <Text className="text-[#94A3B8] text-sm">{new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</Text>
                     </View>
                     <Pressable onPress={() => router.push('/add-expense' as any)} className="p-2">
                         <Ionicons name="add" size={28} color="white" />
@@ -282,8 +338,22 @@ export default function ExpensesScreen() {
                                 keyboardType="numeric"
                                 value={tempGoal}
                                 onChangeText={setTempGoal}
-                                autoFocus
                             />
+                        </View>
+
+                        <Text className="text-slate-400 text-sm mb-3">Does this limit apply Daily, Weekly, or Monthly?</Text>
+                        <View className="flex-row bg-[#0F172A] rounded-xl p-1 mb-8 border border-[#334155]">
+                            {['Daily', 'Weekly', 'Monthly'].map((period) => (
+                                <Pressable
+                                    key={period}
+                                    onPress={() => setTempPeriod(period as any)}
+                                    className={`flex-1 py-2.5 rounded-lg items-center ${tempPeriod === period ? 'bg-[#334155] shadow-sm' : ''}`}
+                                >
+                                    <Text className={`font-medium ${tempPeriod === period ? 'text-white' : 'text-slate-400'}`}>
+                                        {period}
+                                    </Text>
+                                </Pressable>
+                            ))}
                         </View>
 
                         <View className="flex-row justify-end space-x-3 gap-x-3">
@@ -298,12 +368,13 @@ export default function ExpensesScreen() {
                                     const parsedGoal = parseFloat(tempGoal.replace(/[^0-9.-]+/g, ''));
                                     if (!isNaN(parsedGoal) && parsedGoal > 0) {
                                         setExpenseGoal(parsedGoal);
+                                        setExpenseGoalPeriod(tempPeriod);
                                     } else {
                                         setExpenseGoal(0); // clear if invalid/empty
                                     }
                                     setIsGoalModalVisible(false);
                                 }}
-                                className="px-6 py-3 rounded-xl bg-[#EF4444]"
+                                className="px-6 py-3 rounded-xl bg-[#F97316]"
                             >
                                 <Text className="text-white font-bold">Save Limit</Text>
                             </Pressable>

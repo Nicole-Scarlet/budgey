@@ -4,9 +4,9 @@ import React, { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { useTransactions } from './../contexts/TransactionContext';
+import { useTransactions } from '../contexts/TransactionContext';
 
-export default function AddSavingsScreen() {
+export default function AddDebtScreen() {
     const router = useRouter();
     const { addTransaction } = useTransactions();
     const [amount, setAmount] = useState('');
@@ -18,7 +18,7 @@ export default function AddSavingsScreen() {
 
         if (amountValue && itemName) {
             addTransaction({
-                type: 'savings',
+                type: 'debt',
                 amount: amountValue,
                 title: itemName,
                 date: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
@@ -39,7 +39,7 @@ export default function AddSavingsScreen() {
                         <Ionicons name="arrow-back" size={28} color="white" />
                     </Pressable>
                     <View className="flex-1 items-center">
-                        <Text className="text-white text-[22px] font-bold">Add Savings</Text>
+                        <Text className="text-white text-[22px] font-bold">Add Debt</Text>
                     </View>
                 </View>
 
@@ -52,7 +52,7 @@ export default function AddSavingsScreen() {
                         <View className="bg-[#334155]/50 h-16 rounded-2xl px-5 flex-row items-center border border-[#90A1B9]/20">
                             <TextInput
                                 className="text-white text-lg flex-1"
-                                placeholder="Savings Goal (e.g. New Laptop)"
+                                placeholder="Debt Description"
                                 placeholderTextColor="#64748B"
                                 value={itemName}
                                 onChangeText={setItemName}
@@ -80,10 +80,10 @@ export default function AddSavingsScreen() {
                         onPress={handleSave}
                         disabled={!amount || !itemName}
                         className={`w-full h-16 rounded-full items-center justify-center shadow-lg 
-                            ${amount && itemName ? "bg-[#3B82F6] active:bg-[#2563EB]" : "bg-[#334155] opacity-50"}`}
+                            ${amount && itemName ? "bg-[#EF4444] active:bg-[#DC2626]" : "bg-[#334155] opacity-50"}`}
                     >
                         <Text className={`text-xl font-bold ${amount && itemName ? "text-white" : "text-[#94A3B8]"}`}>
-                            Save Savings
+                            Save
                         </Text>
                     </Pressable>
                 </View>

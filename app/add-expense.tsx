@@ -83,9 +83,7 @@ export default function AddExpenseScreen() {
                                     value={itemName}
                                     onChangeText={setItemName}
                                 />
-                                <TouchableOpacity className="ml-2">
-                                    <Feather name="mic" size={20} color="#94A3B8" />
-                                </TouchableOpacity>
+
                             </View>
 
                             <View className="bg-[#303E55] rounded-[16px] flex-row items-center px-4 h-[60px] mb-8">

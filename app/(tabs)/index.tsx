@@ -4,11 +4,11 @@ import * as React from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import CircularProgress from "../../components/CircularProgress";
-import { useTransactions } from "../../contexts/TransactionContext";
+import { GoalPeriod, useTransactions } from "../../contexts/TransactionContext";
 
 const HomePage = () => {
   const router = useRouter();
-  const { transactions, categories: globalCategories, getTotalBalance, getTotalByType, savingsGoal, expenseGoal, debtLimit, investmentLimit, incomeGoal, budget } = useTransactions();
+  const { transactions, categories: globalCategories, getTotalBalance, getTotalByType, savingsGoal, savingsGoalPeriod, expenseGoal, expenseGoalPeriod, debtLimit, debtLimitPeriod, investmentLimit, investmentLimitPeriod, incomeGoal, budget } = useTransactions();
   const { bottom } = useSafeAreaInsets();
 
   const totalIncome = getTotalByType('income');
@@ -76,9 +76,6 @@ const HomePage = () => {
         <View className="mt-12">
           <View className="flex-row justify-between items-center px-8 mb-6">
             <Text className="text-white text-2xl font-bold">Top 5 Expenses</Text>
-            <Pressable>
-              <Text className="text-slate-400 font-medium">View All</Text>
-            </Pressable>
           </View>
 
           {topExpenses.length > 0 ? (
@@ -132,90 +129,80 @@ const HomePage = () => {
               icon="cart-outline"
               color="#F97316"
               title="Expenses"
-              subtitle={
-                expenseGoal > 0
-                  ? `₱${getTotalByType('expense').toLocaleString('en-US', { minimumFractionDigits: 2 })} / ₱${expenseGoal.toLocaleString('en-US', { minimumFractionDigits: 2 })} Limit`
-                  : `₱${getTotalByType('expense').toLocaleString('en-US', { minimumFractionDigits: 2 })}`
-              }
+              amount={getTotalByType('expense')}
+              limit={expenseGoal}
+              period={expenseGoalPeriod}
+              category="expense"
               percentage={
                 expenseGoal > 0
                   ? Math.min(100, (getTotalByType('expense') / expenseGoal) * 100)
                   : Math.min(100, (getTotalByType('expense') / baseForPercentage) * 100)
               }
-              category="expense"
-              onPress={() => router.push('/expenses' as any)}
+              onPress={() => router.push('/add-expense' as any)}
             />
             <Divider />
             <SummaryItem
               icon="wallet-outline"
               color="#22C55E"
               title="Income"
-              subtitle={
-                incomeGoal > 0
-                  ? `₱${totalIncome.toLocaleString('en-US', { minimumFractionDigits: 2 })} / ₱${incomeGoal.toLocaleString('en-US', { minimumFractionDigits: 2 })} Goal`
-                  : `₱${totalIncome.toLocaleString('en-US', { minimumFractionDigits: 2 })}`
-              }
+              amount={totalIncome}
+              limit={incomeGoal}
+              period={null} // Income goal period is not tracked in useTransactions currently
+              category="income"
               percentage={
                 incomeGoal > 0
                   ? Math.min(100, (totalIncome / incomeGoal) * 100)
                   : Math.min(100, (totalIncome / baseForPercentage) * 100)
               }
-              category="income"
-              onPress={() => router.push('/income' as any)}
+              onPress={() => router.push('/add-income' as any)}
             />
             <Divider />
             <SummaryItem
               icon="piggy-bank-outline"
               color="#3B82F6"
               title="Savings"
-              subtitle={
-                savingsGoal > 0
-                  ? `₱${getTotalByType('savings').toLocaleString('en-US', { minimumFractionDigits: 2 })} / ₱${savingsGoal.toLocaleString('en-US', { minimumFractionDigits: 2 })} Goal`
-                  : `₱${getTotalByType('savings').toLocaleString('en-US', { minimumFractionDigits: 2 })}`
-              }
+              amount={getTotalByType('savings')}
+              limit={savingsGoal}
+              period={savingsGoalPeriod}
+              category="savings"
               percentage={
                 savingsGoal > 0
                   ? Math.min(100, (getTotalByType('savings') / savingsGoal) * 100)
                   : Math.min(100, (getTotalByType('savings') / baseForPercentage) * 100)
               }
-              category="savings"
-              onPress={() => router.push('/savings' as any)}
+              onPress={() => router.push('/add-savings' as any)}
             />
             <Divider />
             <SummaryItem
               icon="receipt-outline"
               color="#EF4444"
               title="Debt"
-              subtitle={
-                debtLimit > 0
-                  ? `₱${getTotalByType('debt').toLocaleString('en-US', { minimumFractionDigits: 2 })} / ₱${debtLimit.toLocaleString('en-US', { minimumFractionDigits: 2 })} Limit`
-                  : `₱${getTotalByType('debt').toLocaleString('en-US', { minimumFractionDigits: 2 })}`
-              }
+              amount={getTotalByType('debt')}
+              limit={debtLimit}
+              period={debtLimitPeriod}
+              category="debt"
               percentage={
                 debtLimit > 0
                   ? Math.min(100, (getTotalByType('debt') / debtLimit) * 100)
                   : Math.min(100, (getTotalByType('debt') / baseForPercentage) * 100)
               }
-              category="debt"
-              onPress={() => router.push('/debt' as any)}
+              onPress={() => router.push('/add-debt' as any)}
             />
             <Divider />
             <SummaryItem
               icon="trending-up"
               color="#A855F7"
               title="Investment"
-              subtitle={
-                investmentLimit > 0
-                  ? `₱${getTotalByType('investment').toLocaleString('en-US', { minimumFractionDigits: 2 })} / ₱${investmentLimit.toLocaleString('en-US', { minimumFractionDigits: 2 })} Goal`
-                  : `₱${getTotalByType('investment').toLocaleString('en-US', { minimumFractionDigits: 2 })}`
-              }
+              amount={getTotalByType('investment')}
+              limit={investmentLimit}
+              period={investmentLimitPeriod}
+              category="income" // Keeping original category prop for logic
               percentage={
                 investmentLimit > 0
                   ? Math.min(100, (getTotalByType('investment') / investmentLimit) * 100)
                   : Math.min(100, (getTotalByType('investment') / baseForPercentage) * 100)
               }
-              category="income" // Keeping original category prop for logic
-              onPress={() => router.push('/investment' as any)}
+              onPress={() => router.push('/add-investment' as any)}
             />
           </View>
         </View>
@@ -229,7 +216,9 @@ const SummaryItem = ({
   icon,
   color,
   title,
-  subtitle,
+  amount,
+  limit,
+  period,
   category,
   percentage,
   onPress,
@@ -237,7 +226,9 @@ const SummaryItem = ({
   icon: any,
   color: string,
   title: string,
-  subtitle: string,
+  amount: number,
+  limit: number,
+  period: GoalPeriod | null,
   category: 'expense' | 'savings' | 'debt' | 'income',
   percentage: number,
   onPress?: () => void,
@@ -289,7 +280,11 @@ const SummaryItem = ({
 
         <View>
           <Text className="text-white font-bold text-lg">{title}</Text>
-          <Text className="text-slate-400 text-sm">{subtitle}</Text>
+          <Text className="text-slate-400 text-sm">
+            {limit > 0
+              ? `₱${amount.toLocaleString('en-US', { minimumFractionDigits: 2 })} / ₱${limit.toLocaleString('en-US', { minimumFractionDigits: 2 })} ${period ? period : 'Goal'}`
+              : `₱${amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
+          </Text>
         </View>
       </View>
       <Pressable

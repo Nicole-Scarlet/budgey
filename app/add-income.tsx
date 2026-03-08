@@ -57,9 +57,7 @@ export default function AddIncomeScreen() {
                                 value={itemName}
                                 onChangeText={setItemName}
                             />
-                            <Pressable className="ml-2">
-                                <Ionicons name="mic-outline" size={24} color="#94A3B8" />
-                            </Pressable>
+
                         </View>
 
                         {/* Amount Field */}
