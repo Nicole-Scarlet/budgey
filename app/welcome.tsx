@@ -7,7 +7,7 @@ export default function RouteWelcomePage() {
   const router = useRouter();
   
   return (
-    <ScrollView contentContainerStyle={{ flexGrow: 1 }} className="flex-1 bg-[#0f172a]">
+    <ScrollView contentContainerStyle={{ flexGrow: 1 }} className="flex-1 bg-[#1E293B]">
       <WelcomePage />
       <View className="p-4 border-t border-slate-700 bg-slate-900">
         <Text className="text-white text-sm opacity-50 mb-2">45: Welcome Page {'->'} 36(LogIn), 39(Register)</Text>

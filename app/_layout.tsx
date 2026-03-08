@@ -102,7 +102,9 @@ export default function RootLayout() {
         cost TEXT,
         targetDate TEXT,
         progress INTEGER DEFAULT 0,
-        commitments TEXT DEFAULT '[]'
+        commitments TEXT DEFAULT '[]',
+        image TEXT,
+        url TEXT
       );
     `);
   };

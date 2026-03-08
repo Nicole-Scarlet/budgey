@@ -18,27 +18,20 @@ export default function TabLayout() {
           shadowOpacity: 0,
         },
         headerStyle: {
-          backgroundColor: "#1E293B",
-          // Standard shadow removal for Android/iOS
+          backgroundColor: "transparent",
           elevation: 0,
           shadowOpacity: 0,
-          borderBottomWidth: 1, // Keep your border
-          borderBottomColor: "#334155",
+          borderBottomWidth: 0,
           height: 64,
         } as any,
         headerStatusBarHeight: undefined,
-        headerShadowVisible: false, // THIS is the key to stopping the "early" clipping
-        headerTransparent: false,
+        headerShadowVisible: false,
+        headerTransparent: true, // Content will now scroll behind
+        headerTitle: "",
         headerBackground: () => (
-          <View style={{ flex: 1, backgroundColor: "#1E293B" }} />
+          <View style={{ flex: 1, backgroundColor: "transparent" }} />
         ),
         headerTintColor: "#FFFFFF",
-        headerTitleStyle: {
-          fontWeight: "bold",
-          fontSize: 18,
-          letterSpacing: 0.3,
-          color: "#F1F5F9",
-        },
         headerTitleAlign: "center",
       }}
     >
