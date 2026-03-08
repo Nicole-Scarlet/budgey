@@ -16,7 +16,7 @@ export default function InterviewQuestion2() {
     ];
 
     return (
-        <SafeAreaView className="flex-1 bg-slate-900 px-8 pt-6 pb-12">
+        <SafeAreaView className="flex-1 bg-[#1E293B] px-8 pt-6 pb-12">
             {/* Top Bar */}
             <Pressable onPress={() => router.replace("/question" as any)} className="w-10 h-10 bg-slate-800 rounded-full items-center justify-center border border-slate-700 mb-6 active:bg-slate-700">
                 <Ionicons name="arrow-back" size={20} color="white" />

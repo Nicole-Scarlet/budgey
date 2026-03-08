@@ -30,7 +30,7 @@ export default function EnterBudgetScreen() {
         setAmountStr((prev) => prev.slice(0, -1));
     };
 
-    const handleEnterBudget = () => {
+    const handleEnterBudget = async () => {
         // Parse the final string to a number for state/storage
         const numericAmount = parseFloat(amountStr);
 
@@ -41,7 +41,7 @@ export default function EnterBudgetScreen() {
 
         console.log("Entered Budget:", isNaN(numericAmount) ? 0 : numericAmount);
 
-        setBudget(isNaN(numericAmount) ? 0 : numericAmount);
+        await setBudget(isNaN(numericAmount) ? 0 : numericAmount);
 
         // Send a Direct Overwrite to the home screen
         router.replace('/(tabs)');

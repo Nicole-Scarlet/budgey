@@ -8,7 +8,7 @@ const WelcomePage = () => {
     const router = useRouter();
 
     return (
-        <SafeAreaView className="flex-1 bg-slate-900 px-8 justify-between py-12">
+        <SafeAreaView className="flex-1 bg-[#1E293B] px-8 justify-between py-12">
             {/* Top Illustration - Now a Video! */}
             <View className="items-center mt-10">
                 <View className="w-full h-80 rounded-[20px] items-center justify-center border border-slate-600 overflow-hidden bg-slate-800">

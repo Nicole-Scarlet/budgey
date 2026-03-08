@@ -23,7 +23,7 @@ const LogIn = () => {
     };
 
     return (
-        <SafeAreaView className="flex-1 bg-slate-900">
+        <SafeAreaView className="flex-1 bg-[#1E293B]">
             <KeyboardAvoidingView
                 behavior={Platform.OS === "ios" ? "padding" : "height"}
                 className="flex-1"

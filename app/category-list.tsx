@@ -3,19 +3,18 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useMemo } from 'react';
 import { Alert, FlatList, TouchableOpacity as RNTP, Text, TouchableOpacity, View } from 'react-native';
 import { Category, useTransactions } from '../contexts/TransactionContext';
+import { useTheme } from '../contexts/ThemeContext';
 
 export default function CategoryListScreen() {
     const router = useRouter();
     const { module } = useLocalSearchParams();
     const { categories, deleteCategory, updateCategoryOrder } = useTransactions();
+    const { colors, isDark } = useTheme();
 
-    // Separate categories by active module (if any) or show all
     const activeCategories = useMemo(() => {
-        if (!module) return categories; // Can only reorder safely if viewing one group at a time, or handle global carefully.
+        if (!module) return categories;
         return categories.filter(c => c.type === module);
     }, [categories, module]);
-
-    // No reorder functionality needed anymore
 
     const handleDelete = (category: Category) => {
         Alert.alert(
@@ -26,7 +25,7 @@ export default function CategoryListScreen() {
                 {
                     text: "Delete",
                     style: "destructive",
-                    onPress: () => deleteCategory(category.id)
+                    onPress: async () => await deleteCategory(category.id)
                 }
             ]
         );
@@ -34,7 +33,10 @@ export default function CategoryListScreen() {
 
     const renderItem = ({ item }: { item: Category }) => {
         return (
-            <View className="mb-3 rounded-[24px] overflow-hidden bg-[#303E55]">
+            <View 
+                className="mb-3 rounded-[24px] overflow-hidden"
+                style={{ backgroundColor: colors.card }}
+            >
                 <TouchableOpacity
                     onPress={() => router.push({ pathname: '/add-category', params: { id: item.id, module: item.type } } as any)}
                     style={{ padding: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
@@ -46,25 +48,25 @@ export default function CategoryListScreen() {
                         >
                             <Feather name={item.icon as any} size={20} color={item.color} />
                         </View>
-                        <Text className="text-white text-[16px] font-bold tracking-wide">{item.name}</Text>
+                        <Text className="text-[16px] font-bold tracking-wide" style={{ color: colors.foreground }}>{item.name}</Text>
                     </View>
 
-                    <Text className="text-slate-300 text-[14px]">Edit</Text>
+                    <Text className="text-[14px]" style={{ color: colors.foreground + 'CC' }}>Edit</Text>
                 </TouchableOpacity>
             </View>
         );
     };
 
     return (
-        <View className="flex-1 bg-[#1E293B]">
+        <View className="flex-1" style={{ backgroundColor: colors.background }}>
             {/* Header */}
             <View className="px-6 pt-16 pb-4 flex-row items-center justify-between z-50">
                 <RNTP onPress={() => router.back()} className="p-2 -ml-2">
-                    <Feather name="arrow-left" size={26} color="#E2E8F0" />
+                    <Feather name="arrow-left" size={26} color={colors.foreground} />
                 </RNTP>
-                <Text className="text-white text-[20px] font-bold tracking-wide">List</Text>
+                <Text className="text-[20px] font-bold tracking-wide" style={{ color: colors.foreground }}>List</Text>
                 <RNTP onPress={() => router.back()} className="p-2 -mr-2">
-                    <Text className="text-white text-[16px] font-bold">Done</Text>
+                    <Text className="text-[16px] font-bold" style={{ color: colors.foreground }}>Done</Text>
                 </RNTP>
             </View>
 
@@ -76,25 +78,26 @@ export default function CategoryListScreen() {
                     contentContainerStyle={{ paddingBottom: 100 }}
                     ListHeaderComponent={
                         <View className="mb-4 mt-2">
-                            <Text className="text-slate-500 text-[14px] mb-8 font-medium">
+                            <Text className="text-[14px] mb-8 font-medium" style={{ color: colors.muted }}>
                                 Tap any category to edit.
                             </Text>
 
                             <View className="flex-row items-center justify-between mb-4">
-                                <Text className="text-white text-[22px] font-bold">
+                                <Text className="text-[22px] font-bold" style={{ color: colors.foreground }}>
                                     List
                                 </Text>
                                 <RNTP
-                                    className="bg-[#334155] px-4 py-1.5 rounded-full"
+                                    style={{ backgroundColor: colors.card, borderColor: colors.border + '4D' }}
+                                    className="px-4 py-1.5 rounded-full border"
                                     onPress={() => router.push({ pathname: '/add-category', params: { module: module || 'Expense' } } as any)}
                                 >
-                                    <Text className="text-white text-[14px]">+ Add</Text>
+                                    <Text className="text-[14px]" style={{ color: colors.foreground }}>+ Add</Text>
                                 </RNTP>
                             </View>
                         </View>
                     }
                     ListEmptyComponent={
-                        <Text className="text-slate-400 text-[14px] ml-2 italic">No {typeof module === 'string' ? module.toLowerCase() : 'matching'} categories.</Text>
+                        <Text className="text-[14px] ml-2 italic" style={{ color: colors.muted }}>No {typeof module === 'string' ? module.toLowerCase() : 'matching'} categories.</Text>
                     }
                 />
             </View>

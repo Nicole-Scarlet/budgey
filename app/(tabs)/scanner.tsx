@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import React, { useRef, useState } from 'react';
 import { Dimensions, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTheme } from '../../contexts/ThemeContext';
 
 const { width } = Dimensions.get('window');
 const SCAN_FRAME_SIZE = width * 0.7;
@@ -14,6 +15,7 @@ export default function ActionScreen() {
     const [permission, requestPermission] = useCameraPermissions();
     const [flash, setFlash] = useState<'on' | 'off'>('off');
     const cameraRef = useRef<CameraView>(null);
+    const { colors } = useTheme();
 
     if (!permission) {
         return <View />;
@@ -21,8 +23,8 @@ export default function ActionScreen() {
 
     if (!permission.granted) {
         return (
-            <SafeAreaView className="flex-1 bg-[#1E293B] items-center justify-center px-6">
-                <Text className="text-white text-center text-lg mb-6">We need your permission to show the camera</Text>
+            <SafeAreaView className="flex-1 items-center justify-center px-6" style={{ backgroundColor: colors.background }}>
+                <Text className="text-center text-lg mb-6" style={{ color: colors.foreground }}>We need your permission to show the camera</Text>
                 <Pressable
                     onPress={requestPermission}
                     className="bg-[#3B82F6] px-6 py-3 rounded-xl"

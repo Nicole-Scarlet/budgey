@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTransactions } from '../contexts/TransactionContext';
+import { useTheme } from '../contexts/ThemeContext';
 
 const GEMINI_API_KEY = 'API KEY';
 
@@ -13,6 +14,7 @@ export default function ScannedExpenseScreen() {
     const [isAnalyzing, setIsAnalyzing] = useState(true);
     const [scannedItems, setScannedItems] = useState<any[]>([]);
     const { addTransaction, categories } = useTransactions();
+    const { colors, isDark } = useTheme();
     const [isCategoryModalVisible, setIsCategoryModalVisible] = useState(false);
     const [selectedItemIndex, setSelectedItemIndex] = useState<number | null>(null);
 
@@ -26,7 +28,6 @@ export default function ScannedExpenseScreen() {
 
         const analyzeImage = async () => {
             try {
-                // 1. Convert image URI to Base64
                 const response = await fetch(imageUri);
                 const blob = await response.blob();
 
@@ -40,7 +41,6 @@ export default function ScannedExpenseScreen() {
                     reader.readAsDataURL(blob);
                 });
 
-                // 2. Prepare payload for Gemini API
                 const prompt = `You are an expert receipt analyzer. Extract all purchased items from this receipt image. 
 Return ONLY a valid JSON array of objects without any markdown formatting like \`\`\`json. Each object must have exactly these keys:
 - "name": The short name of the purchased item.
@@ -62,7 +62,6 @@ Return ONLY a valid JSON array of objects without any markdown formatting like \
                     ]
                 };
 
-                // 3. Call Gemini API
                 const apiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
                     method: 'POST',
                     headers: {
@@ -78,7 +77,6 @@ Return ONLY a valid JSON array of objects without any markdown formatting like \
                 const data = await apiResponse.json();
                 const aiText = data.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
 
-                // 4. Parse JSON
                 let cleanedJsonText = aiText.trim();
                 if (cleanedJsonText.startsWith('```json')) {
                     cleanedJsonText = cleanedJsonText.substring(7);
@@ -110,7 +108,7 @@ Return ONLY a valid JSON array of objects without any markdown formatting like \
 
     }, [imageUri]);
 
-    const handleSaveAll = () => {
+    const handleSaveAll = async () => {
         const missingCategories = scannedItems.some(item => !item.categoryId);
         if (missingCategories) {
             Alert.alert("Missing Category", "Please select a category for each scanned item before saving.");
@@ -127,38 +125,44 @@ Return ONLY a valid JSON array of objects without any markdown formatting like \
             return;
         }
 
-        scannedItems.forEach(item => {
+        for (const item of scannedItems) {
             const amountValue = typeof item.amount === 'number' ? item.amount : parseFloat(String(item.amount).replace(/[^0-9.-]+/g, '')) || 0;
 
-            addTransaction({
+            await addTransaction({
                 title: item.name || 'Unknown Item',
                 amount: amountValue,
                 categoryId: item.categoryId || 'other',
                 type: 'expense',
                 date: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
             });
-        });
+        }
 
         router.push('/expenses');
     };
 
     return (
-        <SafeAreaView className="flex-1 bg-[#1E293B]">
+        <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
             {/* Header */}
             <View className="px-6 py-4 flex-row items-center justify-between">
                 <Pressable onPress={() => router.back()} className="p-2">
-                    <Ionicons name="arrow-back" size={24} color="white" />
+                    <Ionicons name="arrow-back" size={24} color={colors.foreground} />
                 </Pressable>
-                <Text className="text-white text-xl font-bold">Expenses</Text>
+                <Text className="text-xl font-bold" style={{ color: colors.foreground }}>Expenses</Text>
                 <Pressable className="p-2">
-                    <MaterialCommunityIcons name="dots-horizontal" size={24} color="white" />
+                    <MaterialCommunityIcons name="dots-horizontal" size={24} color={colors.foreground} />
                 </Pressable>
             </View>
 
-            <ScrollView className="flex-1 px-6 mt-4 border-b border-[#90A1B9]/10 pb-4">
+            <ScrollView 
+                className="flex-1 px-6 mt-4 border-b pb-4"
+                style={{ borderBottomColor: colors.border + '1A' }}
+            >
                 {/* Captured Image Preview & Analyzing State */}
                 {imageUri ? (
-                    <View className="mb-6 rounded-[25px] overflow-hidden border border-[#90A1B9]/30 items-center justify-center bg-black h-48 relative">
+                    <View 
+                        style={{ borderColor: colors.border + '4D' }}
+                        className="mb-6 rounded-[25px] overflow-hidden border items-center justify-center bg-black h-48 relative"
+                    >
                         <Image
                             source={{ uri: imageUri }}
                             style={{ width: '100%', height: '100%', resizeMode: 'cover', opacity: isAnalyzing ? 0.4 : 1 }}
@@ -174,33 +178,40 @@ Return ONLY a valid JSON array of objects without any markdown formatting like \
                     </View>
                 ) : null}
 
-                <Text className="text-[#CBD5E1] text-lg font-bold mb-4">
+                <Text className="text-lg font-bold mb-4" style={{ color: colors.foreground + 'DD' }}>
                     {isAnalyzing ? 'Extracting Details...' : 'Scanned Details'}
                 </Text>
 
                 {/* Details Table Container */}
-                <View className="bg-[#334155] rounded-[25px] border border-[#90A1B9]/30 overflow-hidden">
+                <View 
+                    style={{ backgroundColor: colors.card, borderColor: colors.border + '4D' }}
+                    className="rounded-[25px] border overflow-hidden"
+                >
                     {/* Table Header */}
-                    <View className="flex-row border-b border-[#90A1B9]/20 px-4 py-4">
-                        <Text className="flex-1 text-[#CBD5E1] font-bold text-xs">Name</Text>
-                        <Text className="w-20 text-[#CBD5E1] font-bold text-xs">Category</Text>
-                        <Text className="w-20 text-[#CBD5E1] font-bold text-xs text-right">Amount</Text>
+                    <View className="flex-row border-b px-4 py-4" style={{ borderBottomColor: colors.border + '33' }}>
+                        <Text className="flex-1 font-bold text-xs" style={{ color: colors.foreground + 'DD' }}>Name</Text>
+                        <Text className="w-20 font-bold text-xs" style={{ color: colors.foreground + 'DD' }}>Category</Text>
+                        <Text className="w-20 font-bold text-xs text-right" style={{ color: colors.foreground + 'DD' }}>Amount</Text>
                     </View>
 
                     {/* Table Rows */}
                     {isAnalyzing ? (
                         <View className="p-8 items-center justify-center">
-                            <Text className="text-white/50 italic text-xs">Waiting for AI extraction...</Text>
+                            <Text className="italic text-xs" style={{ color: colors.muted }}>Waiting for AI extraction...</Text>
                         </View>
                     ) : scannedItems.length === 0 ? (
                         <View className="p-8 items-center justify-center">
-                            <MaterialCommunityIcons name="receipt" size={32} color="#94A3B8" className="mb-2" />
-                            <Text className="text-[#94A3B8] text-xs text-center mt-2">No items detected on this receipt.</Text>
+                            <MaterialCommunityIcons name="receipt" size={32} color={colors.muted} />
+                            <Text className="text-xs text-center mt-2" style={{ color: colors.muted }}>No items detected on this receipt.</Text>
                         </View>
                     ) : (
                         scannedItems.map((item, index) => (
-                            <View key={index} className={`flex-row items-center px-4 py-4 ${index !== scannedItems.length - 1 ? 'border-b border-[#90A1B9]/10' : ''}`}>
-                                <Text className="flex-1 text-white text-[11px] leading-4 pl-1 pr-2" numberOfLines={2}>{item.name}</Text>
+                            <View 
+                                key={index} 
+                                className={`flex-row items-center px-4 py-4`}
+                                style={index !== scannedItems.length - 1 ? { borderBottomWidth: 1, borderBottomColor: colors.border + '1A' } : {}}
+                            >
+                                <Text className="flex-1 text-[11px] leading-4 pl-1 pr-2" style={{ color: colors.foreground }} numberOfLines={2}>{item.name}</Text>
 
                                 <Pressable
                                     className="w-28 justify-center"
@@ -210,9 +221,12 @@ Return ONLY a valid JSON array of objects without any markdown formatting like \
                                     }}
                                 >
                                     {item.categoryId ? (
-                                        <View className="bg-slate-700 px-2 py-1.5 rounded flex-row items-center border border-slate-600 mr-2">
-                                            <Feather name={categories.find(c => c.id === item.categoryId)?.icon as any || 'help-circle'} size={12} color={categories.find(c => c.id === item.categoryId)?.color || '#94A3B8'} />
-                                            <Text className="text-white text-[10px] ml-1.5 flex-1" numberOfLines={1}>
+                                        <View 
+                                            style={{ backgroundColor: colors.background, borderColor: colors.border }}
+                                            className="px-2 py-1.5 rounded flex-row items-center border mr-2"
+                                        >
+                                            <Feather name={categories.find(c => c.id === item.categoryId)?.icon as any || 'help-circle'} size={12} color={categories.find(c => c.id === item.categoryId)?.color || colors.muted} />
+                                            <Text className="text-[10px] ml-1.5 flex-1" style={{ color: colors.foreground }} numberOfLines={1}>
                                                 {categories.find(c => c.id === item.categoryId)?.name || 'Select'}
                                             </Text>
                                         </View>
@@ -234,7 +248,7 @@ Return ONLY a valid JSON array of objects without any markdown formatting like \
                 {/* Footer Prompt */}
                 {!isAnalyzing && (
                     <View className="items-center mt-12 mb-8">
-                        <Text className="text-white text-xl font-bold mb-6">{scannedItems.length > 0 ? "Is That All?" : "No Items Found"}</Text>
+                        <Text className="text-xl font-bold mb-6" style={{ color: colors.foreground }}>{scannedItems.length > 0 ? "Is That All?" : "No Items Found"}</Text>
 
                         <View className="flex-row w-full px-4 gap-4">
                             {scannedItems.length > 0 && (
@@ -242,17 +256,19 @@ Return ONLY a valid JSON array of objects without any markdown formatting like \
                                     onPress={handleSaveAll}
                                     disabled={scannedItems.some(item => (typeof item.amount === 'number' ? item.amount : parseFloat(String(item.amount).replace(/[^0-9.-]+/g, '')) || 0) > 1000000000)}
                                     className={`flex-1 border border-[#38BDF8] rounded-xl py-4 items-center 
-                                        ${scannedItems.some(item => (typeof item.amount === 'number' ? item.amount : parseFloat(String(item.amount).replace(/[^0-9.-]+/g, '')) || 0) > 1000000000) ? 'bg-slate-700/50 border-slate-600' : 'bg-[#3B82F6]/10'}`}
+                                        ${scannedItems.some(item => (typeof item.amount === 'number' ? item.amount : parseFloat(String(item.amount).replace(/[^0-9.-]+/g, '')) || 0) > 1000000000) ? 'border-slate-600' : 'bg-[#3B82F6]/10'}`}
+                                    style={scannedItems.some(item => (typeof item.amount === 'number' ? item.amount : parseFloat(String(item.amount).replace(/[^0-9.-]+/g, '')) || 0) > 1000000000) ? { backgroundColor: colors.card } : {}}
                                 >
-                                    <Text className={`${scannedItems.some(item => (typeof item.amount === 'number' ? item.amount : parseFloat(String(item.amount).replace(/[^0-9.-]+/g, '')) || 0) > 1000000000) ? 'text-slate-500' : 'text-[#38BDF8]'} font-bold`}>YES, SAVE</Text>
+                                    <Text className="font-bold" style={{ color: scannedItems.some(item => (typeof item.amount === 'number' ? item.amount : parseFloat(String(item.amount).replace(/[^0-9.-]+/g, '')) || 0) > 1000000000) ? colors.muted : '#38BDF8' }}>YES, SAVE</Text>
                                 </Pressable>
                             )}
 
                             <Pressable
                                 onPress={() => router.back()}
-                                className="flex-1 bg-[#334155] rounded-xl py-4 items-center"
+                                className="flex-1 rounded-xl py-4 items-center"
+                                style={{ backgroundColor: colors.card }}
                             >
-                                <Text className="text-[#CBD5E1] font-bold">RESCAN</Text>
+                                <Text className="font-bold" style={{ color: colors.foreground + 'DD' }}>RESCAN</Text>
                             </Pressable>
                         </View>
                     </View>
@@ -267,11 +283,15 @@ Return ONLY a valid JSON array of objects without any markdown formatting like \
                 onRequestClose={() => setIsCategoryModalVisible(false)}
             >
                 <View className="flex-1 bg-black/60 justify-end">
-                    <View className="bg-[#1E293B] rounded-t-3xl pt-6 pb-10 px-6">
+                    <View style={{ backgroundColor: colors.background }} className="rounded-t-3xl pt-6 pb-10 px-6">
                         <View className="flex-row justify-between items-center mb-6">
-                            <Text className="text-white text-lg font-bold">Select Category</Text>
-                            <Pressable onPress={() => setIsCategoryModalVisible(false)} className="bg-white/10 p-2 rounded-full">
-                                <Ionicons name="close" size={20} color="white" />
+                            <Text className="text-lg font-bold" style={{ color: colors.foreground }}>Select Category</Text>
+                            <Pressable 
+                                onPress={() => setIsCategoryModalVisible(false)} 
+                                className="p-2 rounded-full"
+                                style={{ backgroundColor: colors.card }}
+                            >
+                                <Ionicons name="close" size={20} color={colors.foreground} />
                             </Pressable>
                         </View>
 
@@ -292,11 +312,12 @@ Return ONLY a valid JSON array of objects without any markdown formatting like \
                                         style={{ width: '20%' }}
                                     >
                                         <View
-                                            className="w-14 h-14 rounded-full items-center justify-center mb-2 bg-[#303E55]"
+                                            className="w-14 h-14 rounded-full items-center justify-center mb-2"
+                                            style={{ backgroundColor: colors.card }}
                                         >
                                             <Feather name={cat.icon as any} size={20} color={cat.color} />
                                         </View>
-                                        <Text className="text-[10px] text-center text-slate-400" numberOfLines={1}>
+                                        <Text className="text-[10px] text-center" style={{ color: colors.muted }} numberOfLines={1}>
                                             {cat.name}
                                         </Text>
                                     </Pressable>
@@ -314,11 +335,12 @@ Return ONLY a valid JSON array of objects without any markdown formatting like \
                                     style={{ width: '20%' }}
                                 >
                                     <View
-                                        className="w-14 h-14 rounded-full items-center justify-center mb-2 bg-[#303E55] border-2 border-dashed border-[#94A3B8]"
+                                        className="w-14 h-14 rounded-full items-center justify-center mb-2 border-2 border-dashed"
+                                        style={{ backgroundColor: colors.card, borderColor: colors.muted }}
                                     >
-                                        <Feather name="plus" size={20} color="#94A3B8" />
+                                        <Feather name="plus" size={20} color={colors.muted} />
                                     </View>
-                                    <Text className="text-[10px] text-center text-slate-400" numberOfLines={1}>
+                                    <Text className="text-[10px] text-center" style={{ color: colors.muted }} numberOfLines={1}>
                                         Add New
                                     </Text>
                                 </Pressable>

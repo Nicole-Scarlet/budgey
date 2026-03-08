@@ -5,7 +5,7 @@ import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTransactions } from '../../contexts/TransactionContext';
-
+import { useTheme } from '../../contexts/ThemeContext';
 
 export default function ExpensesScreen() {
     const router = useRouter();
@@ -23,16 +23,16 @@ export default function ExpensesScreen() {
     const [isCategoryMenuVisible, setIsCategoryMenuVisible] = useState(false);
     const [isTimeFilterVisible, setIsTimeFilterVisible] = useState(false);
     const [isGoalModalVisible, setIsGoalModalVisible] = useState(false);
+    const { colors, isDark } = useTheme();
 
     useFocusEffect(
         useCallback(() => {
-            // Close the category menu when the screen loses focus
             return () => setIsCategoryMenuVisible(false);
         }, [])
     );
     const [tempGoal, setTempGoal] = useState('');
     const [tempPeriod, setTempPeriod] = useState<'Daily' | 'Weekly' | 'Monthly'>(expenseGoalPeriod || 'Monthly');
-    const [headerHeight, setHeaderHeight] = useState(360); // Default fallback height
+    const [headerHeight, setHeaderHeight] = useState(360); 
     const [containerHeight, setContainerHeight] = useState(800);
     const [activeFilter, setActiveFilter] = useState<'Daily' | 'Weekly' | 'Monthly' | 'All'>('All');
 
@@ -46,10 +46,8 @@ export default function ExpensesScreen() {
 
     const isTransactionInActiveFilter = (transactionDateRaw: string) => {
         if (activeFilter === 'All') return true;
-
         const now = new Date();
         const transactionDate = new Date(transactionDateRaw);
-
         switch (activeFilter) {
             case 'Daily':
                 return transactionDate.toDateString() === now.toDateString();
@@ -68,51 +66,51 @@ export default function ExpensesScreen() {
     const expenseTransactions = getTransactionsByType('expense').filter(t => isTransactionInActiveFilter(t.date));
     const totalExpense = expenseTransactions.reduce((acc, curr) => acc + curr.amount, 0);
 
-    // Bottom sheet setup
     const { bottom, top } = useSafeAreaInsets();
     const { height } = useWindowDimensions();
     const bottomSheetRef = useRef<BottomSheet>(null);
 
     const firstSnap = Math.max(220, bottom + 180);
-    // Expand to exactly the space below the header, minus 20px so it stays clear of the icon text 
     const secondSnap = Math.max(firstSnap + 50, containerHeight - headerHeight - 20);
     const snapPoints = useMemo(() => [firstSnap, secondSnap], [firstSnap, secondSnap, containerHeight, headerHeight]);
 
     const handleSheetChanges = useCallback((index: number) => {
         setIsCategoryMenuVisible(false);
-        console.log('handleSheetChanges', index);
     }, []);
 
-    // Formatter
     const formatCurrency = (amount: number) => {
         return `₱${amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
     };
 
     return (
-        <SafeAreaView className="flex-1 bg-[#1E293B]" onLayout={(e) => setContainerHeight(e.nativeEvent.layout.height)}>
+        <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }} onLayout={(e) => setContainerHeight(e.nativeEvent.layout.height)}>
             <View onLayout={(e) => setHeaderHeight(e.nativeEvent.layout.height)}>
-                {/* Header with Navigation */}
-                <View className="bg-[#334155] rounded-b-[40px] pt-8 pb-10 shadow-lg relative z-50">
+                <View 
+                    style={{ backgroundColor: colors.card }}
+                    className="rounded-b-[40px] pt-8 pb-10 shadow-lg relative z-50"
+                >
                     <View className="absolute top-8 right-6 items-end z-50">
                         <Pressable
                             className="p-2 -mr-2"
                             onPress={() => setIsCategoryMenuVisible(!isCategoryMenuVisible)}
                         >
-                            <MaterialCommunityIcons name="dots-horizontal" size={28} color="#94A3B8" />
+                            <MaterialCommunityIcons name="dots-horizontal" size={28} color={colors.muted} />
                         </Pressable>
 
                         {isCategoryMenuVisible && (
                             <View
-                                className="absolute top-12 right-0 bg-[#475569] shadow-xl rounded-[16px] border border-[#64748B] overflow-hidden min-w-[200px] z-[100]"
+                                style={{ backgroundColor: colors.card, borderColor: colors.border }}
+                                className="absolute top-12 right-0 shadow-xl rounded-[16px] border overflow-hidden min-w-[200px] z-[100]"
                             >
                                 <Pressable
                                     onPress={() => {
                                         setIsCategoryMenuVisible(false);
                                         router.push({ pathname: '/add-category', params: { module: 'Expense' } } as any);
                                     }}
-                                    className="flex-row items-center justify-between px-4 py-3 border-b border-[#64748B] active:bg-[#334155]/50"
+                                    className="flex-row items-center justify-between px-4 py-3 border-b active:opacity-50"
+                                    style={{ borderBottomColor: colors.border + '33' }}
                                 >
-                                    <Text className="text-white font-bold text-sm">Add Category</Text>
+                                    <Text className="font-bold text-sm" style={{ color: colors.foreground }}>Add Category</Text>
                                     <Ionicons name="add" size={20} color="#4ADE80" />
                                 </Pressable>
                                 <Pressable
@@ -120,10 +118,10 @@ export default function ExpensesScreen() {
                                         setIsCategoryMenuVisible(false);
                                         router.push({ pathname: '/category-list', params: { module: 'Expense' } } as any);
                                     }}
-                                    className="flex-row items-center justify-between px-4 py-3 active:bg-[#334155]/50"
+                                    className="flex-row items-center justify-between px-4 py-3 active:opacity-50"
                                 >
-                                    <Text className="text-white font-bold text-sm">Manage Categories</Text>
-                                    <Feather name="settings" size={18} color="#94A3B8" />
+                                    <Text className="font-bold text-sm" style={{ color: colors.foreground }}>Manage Categories</Text>
+                                    <Feather name="settings" size={18} color={colors.muted} />
                                 </Pressable>
                             </View>
                         )}
@@ -133,21 +131,28 @@ export default function ExpensesScreen() {
                         onPress={() => isCategoryMenuVisible && setIsCategoryMenuVisible(false)}
                         className="items-center mt-2"
                     >
-                        <Text className="text-white text-[42px] font-bold tracking-tight">{formatCurrency(totalExpense)}</Text>
-                        <Text className="text-white/80 text-lg font-medium mt-2 mb-2">Overall Expenses</Text>
+                        <Text className="text-[42px] font-bold tracking-tight" style={{ color: colors.foreground }}>{formatCurrency(totalExpense)}</Text>
+                        <Text className="text-lg font-medium mt-2 mb-2" style={{ color: colors.foreground + 'CC' }}>Overall Expenses</Text>
                         {expenseGoal > 0 ? (
-                            <Pressable onPress={() => { setIsCategoryMenuVisible(false); setTempGoal(expenseGoal.toString()); setTempPeriod(expenseGoalPeriod); setIsGoalModalVisible(true); }} className="bg-[#1E293B] px-4 py-2 rounded-full border border-[#90A1B9]/30">
+                            <Pressable 
+                                onPress={() => { setIsCategoryMenuVisible(false); setTempGoal(expenseGoal.toString()); setTempPeriod(expenseGoalPeriod); setIsGoalModalVisible(true); }} 
+                                className="px-4 py-2 rounded-full border"
+                                style={{ backgroundColor: colors.background, borderColor: colors.border }}
+                            >
                                 <Text className="text-[#F97316] font-medium text-sm">Limit: ₱{expenseGoal.toLocaleString('en-US', { minimumFractionDigits: 2 })} / {expenseGoalPeriod} (Edit)</Text>
                             </Pressable>
                         ) : (
-                            <Pressable onPress={() => { setIsCategoryMenuVisible(false); setTempGoal(''); setTempPeriod('Monthly'); setIsGoalModalVisible(true); }} className="bg-[#1E293B] px-4 py-2 rounded-full border border-[#90A1B9]/30">
+                            <Pressable 
+                                onPress={() => { setIsCategoryMenuVisible(false); setTempGoal(''); setTempPeriod('Monthly'); setIsGoalModalVisible(true); }} 
+                                className="px-4 py-2 rounded-full border"
+                                style={{ backgroundColor: colors.background, borderColor: colors.border }}
+                            >
                                 <Text className="text-[#F97316] font-medium text-sm">+ Set Expense Limit</Text>
                             </Pressable>
                         )}
                     </Pressable>
                 </View>
 
-                {/* Category Icons Row */}
                 <Pressable onPress={() => setIsCategoryMenuVisible(false)} className="px-4 py-6">
                     <View className="flex-row justify-between w-full px-2">
                         {navCategories.map((cat, index) => (
@@ -160,16 +165,18 @@ export default function ExpensesScreen() {
                                         if (cat.name === 'Debt') router.push('/debt' as any);
                                         if (cat.name === 'Investment') router.push('/investment' as any);
                                     }}
-                                    className={`p-3 rounded-2xl border ${cat.active ? 'bg-[#334155] border-[#90A1B9]/30' : 'bg-transparent border-transparent'}`}
+                                    className={`p-3 rounded-2xl border ${cat.active ? 'border-[#90A1B9]/30' : 'border-transparent'}`}
+                                    style={{ backgroundColor: cat.active ? colors.card : 'transparent' }}
                                 >
                                     <MaterialCommunityIcons
                                         name={cat.icon as any}
                                         size={32}
-                                        color={cat.active ? 'white' : '#94A3B8'}
+                                        color={cat.active ? colors.foreground : colors.muted}
                                     />
                                 </Pressable>
                                 <Text
-                                    className={`text-[10px] mt-1 font-medium ${cat.active ? 'text-white' : 'text-[#94A3B8]'}`}
+                                    className={`text-[10px] mt-1 font-medium`}
+                                    style={{ color: cat.active ? colors.foreground : colors.muted }}
                                 >
                                     {cat.name}
                                 </Text>
@@ -179,13 +186,12 @@ export default function ExpensesScreen() {
                 </Pressable>
             </View>
 
-            {/* Expense Categories List */}
             <ScrollView className="px-6 flex-1" contentContainerStyle={{ paddingBottom: 250 }} showsVerticalScrollIndicator={false}>
                 <Pressable onPress={() => setIsCategoryMenuVisible(false)}>
                     {globalCategories.filter(c => c.type === 'Expense').length === 0 ? (
                         <View className="flex-1 items-center justify-center pt-20">
-                            <Text className="text-white text-xl font-bold font-['Inter_700Bold'] mb-2">No categories yet.</Text>
-                            <Text className="text-[#94A3B8] text-center text-[15px] px-4 leading-6">
+                            <Text className="text-xl font-bold font-['Inter_700Bold'] mb-2" style={{ color: colors.foreground }}>No categories yet.</Text>
+                            <Text className="text-center text-[15px] px-4 leading-6" style={{ color: colors.muted }}>
                                 Tap the menu icon (•••) at the top right{'\n'}to add a category.
                             </Text>
                         </View>
@@ -198,10 +204,10 @@ export default function ExpensesScreen() {
                                 <Pressable
                                     key={cat.id}
                                     onPress={() => router.push({ pathname: '/add-expense', params: { category: cat.id, categoryName: cat.name, module: 'Expense' } })}
-                                    className="flex-row items-center justify-between py-4 border-b border-[#334155] active:bg-[#334155]/30"
+                                    className="flex-row items-center justify-between py-4 border-b active:opacity-50"
+                                    style={{ borderBottomColor: colors.border + '33' }}
                                 >
                                     <View className="flex-row items-center flex-1">
-                                        {/* Icon */}
                                         <View
                                             className="w-14 h-14 rounded-full border-2 items-center justify-center mr-4"
                                             style={{ backgroundColor: `${cat.color}20`, borderColor: cat.color }}
@@ -209,18 +215,19 @@ export default function ExpensesScreen() {
                                             <Feather name={cat.icon as any} size={24} color={cat.color} />
                                         </View>
 
-                                        {/* Info */}
                                         <View>
-                                            <Text className="text-white text-[18px] font-bold mb-1">{cat.name}</Text>
-                                            <Text className="text-[#94A3B8] text-[14px]">
+                                            <Text className="text-[18px] font-bold mb-1" style={{ color: colors.foreground }}>{cat.name}</Text>
+                                            <Text className="text-[14px]" style={{ color: colors.muted }}>
                                                 Spent: ₱{categorySpent.toLocaleString('en-US', { minimumFractionDigits: 2 })} / Limit: ₱{cat.limit.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                                             </Text>
                                         </View>
                                     </View>
 
-                                    {/* Add button instead of Chevron since entire row adds expense */}
-                                    <View className="w-10 h-10 items-center justify-center bg-[#475569] rounded-full">
-                                        <Ionicons name="add" size={24} color="white" />
+                                    <View 
+                                        className="w-10 h-10 items-center justify-center rounded-full"
+                                        style={{ backgroundColor: colors.card }}
+                                    >
+                                        <Ionicons name="add" size={24} color={colors.foreground} />
                                     </View>
                                 </Pressable>
                             );
@@ -229,27 +236,26 @@ export default function ExpensesScreen() {
                 </Pressable>
             </ScrollView>
 
-            {/* Bottom Sheet for Expenses Summary */}
             <BottomSheet
                 ref={bottomSheetRef}
                 index={1}
                 snapPoints={snapPoints}
                 onChange={handleSheetChanges}
-                backgroundStyle={{ backgroundColor: '#1E293B', borderRadius: 24, shadowColor: '#000', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.25, shadowRadius: 10, elevation: 10 }}
-                handleIndicatorStyle={{ backgroundColor: '#64748B', width: 40 }}
+                backgroundStyle={{ backgroundColor: colors.background, borderRadius: 24, shadowColor: '#000', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.25, shadowRadius: 10, elevation: 10 }}
+                handleIndicatorStyle={{ backgroundColor: colors.muted, width: 40 }}
             >
                 <View className="px-6 pt-4 pb-2 flex-row justify-between items-center relative z-50">
                     <View>
                         <View className="flex-row items-center mb-1">
-                            <Text className="text-white text-2xl font-bold font-['Inter_700Bold'] mr-3">Expenses</Text>
+                            <Text className="text-2xl font-bold font-['Inter_700Bold'] mr-3" style={{ color: colors.foreground }}>Expenses</Text>
 
-                            {/* Filter Dropdown Trigger Option 2 */}
                             <Pressable
                                 onPress={() => setIsTimeFilterVisible(!isTimeFilterVisible)}
-                                className="bg-[#334155] px-3 py-1.5 rounded-full flex-row items-center border border-[#475569]"
+                                className="px-3 py-1.5 rounded-full flex-row items-center border"
+                                style={{ backgroundColor: colors.card, borderColor: colors.border }}
                             >
-                                <Text className="text-slate-300 text-xs font-bold mr-1">{activeFilter}</Text>
-                                <Feather name="chevron-down" size={14} color="#CBD5E1" />
+                                <Text className="text-xs font-bold mr-1" style={{ color: colors.muted }}>{activeFilter}</Text>
+                                <Feather name="chevron-down" size={14} color={colors.muted} />
                             </Pressable>
 
                             <Modal
@@ -264,8 +270,8 @@ export default function ExpensesScreen() {
                                     onPress={() => setIsTimeFilterVisible(false)}
                                 >
                                     <View
-                                        className="absolute bg-[#475569] shadow-2xl rounded-xl border border-[#64748B] overflow-hidden w-32 z-50"
-                                        style={{ top: height - firstSnap - 10, left: 135 }}
+                                        className="absolute shadow-2xl rounded-xl border overflow-hidden w-32 z-50"
+                                        style={{ top: height - firstSnap - 10, left: 135, backgroundColor: colors.card, borderColor: colors.border }}
                                     >
                                         {['All', 'Daily', 'Weekly', 'Monthly'].map((filter) => (
                                             <Pressable
@@ -274,9 +280,10 @@ export default function ExpensesScreen() {
                                                     setActiveFilter(filter as any);
                                                     setIsTimeFilterVisible(false);
                                                 }}
-                                                className={`px-4 py-3 border-b border-[#334155]/30 flex-row items-center justify-between ${activeFilter === filter ? 'bg-[#334155]' : ''}`}
+                                                className={`px-4 py-3 border-b flex-row items-center justify-between ${activeFilter === filter ? (isDark ? 'bg-[#334155]' : 'bg-slate-100') : ''}`}
+                                                style={{ borderBottomColor: colors.border + '33' }}
                                             >
-                                                <Text className={`text-sm ${activeFilter === filter ? 'text-white font-bold' : 'text-slate-300'}`}>{filter}</Text>
+                                                <Text className={`text-sm ${activeFilter === filter ? 'text-white font-bold' : ''}`} style={{ color: activeFilter === filter ? colors.foreground : colors.muted }}>{filter}</Text>
                                                 {activeFilter === filter && <Feather name="check" size={14} color="#4ADE80" />}
                                             </Pressable>
                                         ))}
@@ -284,18 +291,18 @@ export default function ExpensesScreen() {
                                 </Pressable>
                             </Modal>
                         </View>
-                        <Text className="text-[#94A3B8] text-sm">{new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</Text>
+                        <Text className="text-sm" style={{ color: colors.muted }}>{new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</Text>
                     </View>
                     <Pressable onPress={() => router.push('/add-expense' as any)} className="p-2">
-                        <Ionicons name="add" size={28} color="white" />
+                        <Ionicons name="add" size={28} color={colors.foreground} />
                     </Pressable>
                 </View>
 
                 <BottomSheetScrollView contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 40, paddingTop: 20 }}>
                     {expenseTransactions.length === 0 ? (
                         <View className="items-center justify-center pt-10 pb-20">
-                            <Ionicons name="cart-outline" size={48} color="#64748B" />
-                            <Text className="text-[#94A3B8] text-lg mt-4 text-center px-4">No expenses recorded yet.</Text>
+                            <Ionicons name="cart-outline" size={48} color={colors.muted} />
+                            <Text className="text-lg mt-4 text-center px-4" style={{ color: colors.muted }}>No expenses recorded yet.</Text>
                         </View>
                     ) : (
                         expenseTransactions.map((item, index) => {
@@ -303,7 +310,7 @@ export default function ExpensesScreen() {
                             return (
                                 <Pressable
                                     key={item.id}
-                                    className="flex-row items-center py-3 active:bg-[#334155]/50 rounded-xl px-2 -mx-2"
+                                    className="flex-row items-center py-3 active:opacity-50 rounded-xl px-2 -mx-2"
                                     onLongPress={() => {
                                         Alert.alert(
                                             "Delete Expense",
@@ -322,17 +329,17 @@ export default function ExpensesScreen() {
                                 >
                                     <View
                                         className="w-10 h-10 rounded-full items-center justify-center mr-4"
-                                        style={{ backgroundColor: category ? `${category.color}20` : '#334155' }}
+                                        style={{ backgroundColor: category ? `${category.color}20` : colors.card }}
                                     >
-                                        <Feather name={(category?.icon as any) || "shopping-bag"} size={18} color={category?.color || "#94A3B8"} />
+                                        <Feather name={(category?.icon as any) || "shopping-bag"} size={18} color={category?.color || colors.muted} />
                                     </View>
 
                                     <View className="flex-1 justify-center">
-                                        <Text className="text-white font-medium text-[16px] mb-1">{item.title}</Text>
-                                        <Text className="text-[#94A3B8] text-[12px]">{item.date}</Text>
+                                        <Text className="font-medium text-[16px] mb-1" style={{ color: colors.foreground }}>{item.title}</Text>
+                                        <Text className="text-[12px]" style={{ color: colors.muted }}>{item.date}</Text>
                                     </View>
 
-                                    <Text className="text-white font-bold text-[16px]">
+                                    <Text className="font-bold text-[16px]" style={{ color: colors.foreground }}>
                                         -₱{item.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                                     </Text>
                                 </Pressable>
@@ -341,7 +348,7 @@ export default function ExpensesScreen() {
                     )}
                 </BottomSheetScrollView>
             </BottomSheet>
-            {/* Expense Limit Modal */}
+
             <Modal
                 animationType="fade"
                 transparent={true}
@@ -354,9 +361,12 @@ export default function ExpensesScreen() {
                     onPress={() => setIsGoalModalVisible(false)}
                 >
                     <Pressable onPress={() => { }} className="w-full">
-                        <View className="bg-[#1E293B] w-full rounded-3xl p-6 border border-[#334155] shadow-2xl">
-                            <Text className="text-white text-xl font-bold mb-4">Set Expense Limit</Text>
-                            <Text className="text-slate-400 text-sm mb-4">Enter your target expense limit below:</Text>
+                        <View 
+                            style={{ backgroundColor: colors.card, borderColor: colors.border }}
+                            className="w-full rounded-3xl p-6 border shadow-2xl"
+                        >
+                            <Text className="text-xl font-bold mb-4" style={{ color: colors.foreground }}>Set Expense Limit</Text>
+                            <Text className="text-sm mb-4" style={{ color: colors.muted }}>Enter your target expense limit below:</Text>
 
                             {parseFloat(tempGoal.replace(/[^0-9.-]+/g, '')) > 1000000000 && (
                                 <Text className="text-red-500 text-xs mb-2 font-bold">
@@ -364,27 +374,34 @@ export default function ExpensesScreen() {
                                 </Text>
                             )}
 
-                            <View className={`bg-[#0F172A] rounded-2xl flex-row items-center px-4 h-14 border ${parseFloat(tempGoal.replace(/[^0-9.-]+/g, '')) > 1000000000 ? 'border-red-500' : 'border-[#334155]'} mb-6`}>
-                                <Text className="text-slate-400 text-lg mr-2">₱</Text>
+                            <View 
+                                className={`rounded-2xl flex-row items-center px-4 h-14 border mb-6`}
+                                style={{ backgroundColor: colors.background, borderColor: parseFloat(tempGoal.replace(/[^0-9.-]+/g, '')) > 1000000000 ? '#ef4444' : colors.border }}
+                            >
+                                <Text className="text-lg mr-2" style={{ color: colors.muted }}>₱</Text>
                                 <TextInput
-                                    className="flex-1 text-white text-lg font-medium"
+                                    className="flex-1 text-lg font-medium"
+                                    style={{ color: colors.foreground }}
                                     placeholder="0.00"
-                                    placeholderTextColor="#475569"
+                                    placeholderTextColor={colors.muted}
                                     keyboardType="numeric"
                                     value={tempGoal}
                                     onChangeText={setTempGoal}
                                 />
                             </View>
 
-                            <Text className="text-slate-400 text-sm mb-3">Does this limit apply Daily, Weekly, or Monthly?</Text>
-                            <View className="flex-row bg-[#0F172A] rounded-xl p-1 mb-8 border border-[#334155]">
+                            <Text className="text-sm mb-3" style={{ color: colors.muted }}>Does this limit apply Daily, Weekly, or Monthly?</Text>
+                            <View 
+                                className="flex-row rounded-xl p-1 mb-8 border"
+                                style={{ backgroundColor: colors.background, borderColor: colors.border }}
+                            >
                                 {['Daily', 'Weekly', 'Monthly'].map((period) => (
                                     <Pressable
                                         key={`${period}-goal`}
                                         onPress={() => setTempPeriod(period as any)}
-                                        className={`flex-1 py-2.5 rounded-lg items-center ${tempPeriod === period ? 'bg-[#334155]' : ''}`}
+                                        className={`flex-1 py-2.5 rounded-lg items-center ${tempPeriod === period ? (isDark ? 'bg-[#334155]' : 'bg-slate-200') : ''}`}
                                     >
-                                        <Text className={`font-medium ${tempPeriod === period ? 'text-white' : 'text-slate-400'}`}>
+                                        <Text className={`font-medium ${tempPeriod === period ? (isDark ? 'text-white' : 'text-slate-900') : ''}`} style={{ color: tempPeriod === period ? (isDark ? 'white' : 'text-slate-900') : colors.muted }}>
                                             {period}
                                         </Text>
                                     </Pressable>
@@ -394,19 +411,20 @@ export default function ExpensesScreen() {
                             <View className="flex-row justify-end space-x-3 gap-x-3">
                                 <Pressable
                                     onPress={() => setIsGoalModalVisible(false)}
-                                    className="px-6 py-3 rounded-xl bg-[#334155]"
+                                    className="px-6 py-3 rounded-xl"
+                                    style={{ backgroundColor: colors.background }}
                                 >
-                                    <Text className="text-white font-medium">Cancel</Text>
+                                    <Text className="font-medium" style={{ color: colors.foreground }}>Cancel</Text>
                                 </Pressable>
                                 <Pressable
-                                    onPress={() => {
+                                    onPress={async () => {
                                         const parsedGoal = parseFloat(tempGoal.replace(/[^0-9.-]+/g, ''));
                                         if (!isNaN(parsedGoal) && parsedGoal > 0 && parsedGoal <= 1000000000) {
-                                            setExpenseGoal(parsedGoal);
-                                            setExpenseGoalPeriod(tempPeriod);
+                                            await setExpenseGoal(parsedGoal);
+                                            await setExpenseGoalPeriod(tempPeriod);
                                             setIsGoalModalVisible(false);
                                         } else if (tempGoal === '' || parsedGoal === 0) {
-                                            setExpenseGoal(0); // clear if empty
+                                            await setExpenseGoal(0);
                                             setIsGoalModalVisible(false);
                                         }
                                     }}

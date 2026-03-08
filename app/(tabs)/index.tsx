@@ -1,10 +1,12 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import * as React from "react";
-import { Keyboard, Modal, Pressable, ScrollView, Text, TextInput, TouchableWithoutFeedback, View } from "react-native";
+import { Keyboard, Modal, Pressable, ScrollView, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import CircularProgress from "../../components/CircularProgress";
 import { GoalPeriod, useTransactions } from "../../contexts/TransactionContext";
+import { useProfile } from "../../contexts/ProfileContext";
+import { useTheme } from "../../contexts/ThemeContext";
 
 const HomePage = () => {
   const router = useRouter();
@@ -33,6 +35,8 @@ const HomePage = () => {
     subtractDebtFromBudget,
     setSubtractDebtFromBudget
   } = useTransactions();
+  const { profile } = useProfile();
+  const { colors, isDark } = useTheme();
   const { bottom } = useSafeAreaInsets();
 
   const [isBudgetModalVisible, setIsBudgetModalVisible] = React.useState(false);
@@ -51,20 +55,22 @@ const HomePage = () => {
   const topExpenses = sortedExpenses.slice(0, 5);
 
   return (
-    <SafeAreaView className="flex-1 bg-[#1E293B]">
+    <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
 
-        {/* Header */}
         <View className="px-8 pt-8 flex-row justify-between items-center">
           <View>
-            <Text className="text-white text-5xl font-bold">Today</Text>
+            <Text className="text-5xl font-bold" style={{ color: colors.foreground }}>Today</Text>
           </View>
           <View className="flex-row items-center gap-x-4">
             <View className="flex-row items-center bg-[#334155] px-3 py-1.5 rounded-full border border-[#90A1B9]">
               <Ionicons name="flash" size={20} color="#EAB308" />
               <Text className="text-white font-bold ml-1">67</Text>
             </View>
-            <Pressable className="bg-[#334155] p-2 rounded-full border border-[#90A1B9]">
+            <Pressable 
+              onPress={() => router.push('/wishlist' as any)}
+              className="bg-[#334155] p-2 rounded-full border border-[#90A1B9]"
+            >
               <Ionicons name="heart-outline" size={24} color="white" />
             </Pressable>
           </View>
@@ -72,7 +78,10 @@ const HomePage = () => {
 
         {/* Balance Card */}
         <View className="px-8 mt-10">
-          <View className="bg-[#334155] p-8 rounded-[25px] border border-[#90A1B9] shadow-2xl">
+          <View 
+            style={{ backgroundColor: colors.card, borderColor: colors.border }}
+            className="p-8 rounded-[25px] border shadow-2xl"
+          >
             <Pressable
               onPress={() => {
                 setTempBudget(budget > 0 ? budget.toString() : '');
@@ -84,9 +93,9 @@ const HomePage = () => {
               }}
             >
               <View className="flex-row items-center justify-between">
-                <Text className="text-slate-300 text-lg font-medium">Overall Budget</Text>
+                <Text className="text-lg font-medium" style={{ color: colors.muted }}>Overall Budget</Text>
               </View>
-              <Text className="text-white text-5xl font-bold mt-2">
+              <Text className="text-5xl font-bold mt-2" style={{ color: colors.foreground }}>
                 ₱{(budget + getTotalBalance()).toLocaleString('en-US', { minimumFractionDigits: 2 })}
               </Text>
 
@@ -97,24 +106,27 @@ const HomePage = () => {
               )}
             </Pressable>
 
-            <View className="flex-row justify-between mt-10 pt-8 border-t border-[#90A1B9]/30">
+            <View 
+                className="flex-row justify-between mt-10 pt-8 border-t"
+                style={{ borderTopColor: colors.border + '33' }}
+            >
               <View className="items-center">
                 <View className="flex-row items-center gap-x-2">
                   <View className="bg-green-500/20 p-1.5 rounded-full">
                     <Ionicons name="arrow-up" size={14} color="#22c55e" />
                   </View>
-                  <Text className="text-slate-300 text-sm">Income</Text>
+                  <Text className="text-sm" style={{ color: colors.muted }}>Income</Text>
                 </View>
-                <Text className="text-white text-xl font-bold mt-1">₱{getTotalByType('income').toLocaleString('en-US', { minimumFractionDigits: 2 })}</Text>
+                <Text className="text-xl font-bold mt-1" style={{ color: colors.foreground }}>₱{getTotalByType('income').toLocaleString('en-US', { minimumFractionDigits: 2 })}</Text>
               </View>
               <View className="items-center">
                 <View className="flex-row items-center gap-x-2">
                   <View className="bg-red-500/20 p-1.5 rounded-full">
                     <Ionicons name="arrow-down" size={14} color="#ef4444" />
                   </View>
-                  <Text className="text-slate-300 text-sm">Expenses</Text>
+                  <Text className="text-sm" style={{ color: colors.muted }}>Expenses</Text>
                 </View>
-                <Text className="text-white text-xl font-bold mt-1">₱{getTotalByType('expense').toLocaleString('en-US', { minimumFractionDigits: 2 })}</Text>
+                <Text className="text-xl font-bold mt-1" style={{ color: colors.foreground }}>₱{getTotalByType('expense').toLocaleString('en-US', { minimumFractionDigits: 2 })}</Text>
               </View>
             </View>
           </View>
@@ -123,7 +135,7 @@ const HomePage = () => {
         {/* Top Expenses Section */}
         <View className="mt-12">
           <View className="flex-row justify-between items-center px-8 mb-6">
-            <Text className="text-white text-2xl font-bold">Top 5 Expenses</Text>
+            <Text className="text-2xl font-bold" style={{ color: colors.foreground }}>Top 5 Expenses</Text>
           </View>
 
           {topExpenses.length > 0 ? (
@@ -141,18 +153,22 @@ const HomePage = () => {
                 return (
                   <View
                     key={item.id}
-                    className="bg-[#334155] w-[130px] h-[160px] p-4 rounded-[25px] border border-[#90A1B9] mr-4 justify-between"
+                    style={{ backgroundColor: colors.card, borderColor: colors.border }}
+                    className="w-[130px] h-[160px] p-4 rounded-[25px] border mr-4 justify-between"
                   >
                     <View className="w-full items-center mt-1">
-                      <View className="w-14 h-14 rounded-full bg-[#475569] items-center justify-center">
-                        <Text className="text-white font-bold text-3xl">{index + 1}</Text>
+                      <View 
+                        className="w-14 h-14 rounded-full items-center justify-center"
+                        style={{ backgroundColor: colors.background }}
+                      >
+                        <Text className="font-bold text-3xl" style={{ color: colors.foreground }}>{index + 1}</Text>
                       </View>
                     </View>
                     <View className="items-center flex-1 w-full flex-col mt-4">
                       <View className="h-10 justify-center">
-                        <Text className="text-white font-bold text-center" numberOfLines={2}>{item.title}</Text>
+                        <Text className="font-bold text-center" style={{ color: colors.foreground }} numberOfLines={2}>{item.title}</Text>
                       </View>
-                      <Text className="text-[#94A3B8] mt-auto font-medium text-[13px] pb-1">₱{item.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</Text>
+                      <Text className="mt-auto font-medium text-[13px] pb-1" style={{ color: colors.muted }}>₱{item.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</Text>
                     </View>
                   </View>
                 );
@@ -168,11 +184,14 @@ const HomePage = () => {
         {/* Summary Section */}
         <View className="px-8 mt-12" style={{ marginBottom: bottom + 115 }}>
           <View className="flex-row items-center justify-between mb-6">
-            <Text className="text-white text-2xl font-bold">Summary</Text>
-            <Ionicons name="options-outline" size={24} color="#90A1B9" />
+            <Text className="text-2xl font-bold" style={{ color: colors.foreground }}>Summary</Text>
+            <Ionicons name="options-outline" size={24} color={colors.muted} />
           </View>
 
-          <View className="bg-[#334155] rounded-[25px] p-6 border border-[#90A1B9]">
+          <View 
+            className="rounded-[25px] p-6 border"
+            style={{ backgroundColor: colors.card, borderColor: colors.border }}
+          >
             <SummaryItem
               icon="cart-outline"
               color="#F97316"
@@ -272,15 +291,22 @@ const HomePage = () => {
           }}
         >
           <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-            <View className="bg-[#1E293B] w-full p-6 rounded-[25px] border border-[#334155]">
-              <Text className="text-white text-xl font-bold mb-4">Set Overall Budget</Text>
+            <View 
+                className="w-full p-6 rounded-[25px] border"
+                style={{ backgroundColor: colors.card, borderColor: colors.border }}
+            >
+              <Text className="text-xl font-bold mb-4" style={{ color: colors.foreground }}>Set Overall Budget</Text>
 
-              <View className="flex-row items-center bg-[#0F172A] rounded-xl px-4 py-3 mb-4 border border-[#334155]">
-                <Text className="text-slate-400 text-lg mr-2">₱</Text>
+              <View 
+                className="flex-row items-center rounded-xl px-4 py-3 mb-4 border"
+                style={{ backgroundColor: colors.background, borderColor: colors.border }}
+              >
+                <Text style={{ color: colors.muted }} className="text-lg mr-2">₱</Text>
                 <TextInput
-                  className={`flex-1 text-white text-lg font-medium ${parseFloat(tempBudget) > 1000000000 ? 'text-red-400' : ''}`}
+                  className={`flex-1 text-lg font-medium`}
+                  style={{ color: colors.foreground }}
                   placeholder="0.00"
-                  placeholderTextColor="#475569"
+                  placeholderTextColor={colors.muted}
                   keyboardType="numeric"
                   value={tempBudget}
                   onChangeText={(text) => setTempBudget(text.replace(/[^0-9.]/g, ''))}
@@ -291,15 +317,18 @@ const HomePage = () => {
                 <Text className="text-red-400 text-xs mb-4 ml-1">Maximum limit is ₱1,000,000,000</Text>
               )}
 
-              <Text className="text-slate-400 text-sm mb-3">Does this limit apply Daily, Weekly, or Monthly?</Text>
-              <View className="flex-row bg-[#0F172A] rounded-xl p-1 mb-6 border border-[#334155]">
+              <Text className="text-sm mb-3" style={{ color: colors.muted }}>Does this limit apply Daily, Weekly, or Monthly?</Text>
+              <View 
+                className="flex-row rounded-xl p-1 mb-6 border"
+                style={{ backgroundColor: colors.background, borderColor: colors.border }}
+              >
                 {['Daily', 'Weekly', 'Monthly'].map((period) => (
                   <Pressable
                     key={`${period}-budget`}
                     onPress={() => setTempPeriod(period as any)}
-                    className={`flex-1 py-2.5 rounded-lg items-center ${tempPeriod === period ? 'bg-[#334155]' : ''}`}
+                    className={`flex-1 py-2.5 rounded-lg items-center ${tempPeriod === period ? (isDark ? 'bg-[#334155]' : 'bg-slate-200') : ''}`}
                   >
-                    <Text className={`font-medium ${tempPeriod === period ? 'text-white' : 'text-slate-400'}`}>
+                    <Text className={`font-medium ${tempPeriod === period ? (isDark ? 'text-white' : 'text-slate-900') : 'text-slate-400'}`}>
                       {period}
                     </Text>
                   </Pressable>
@@ -363,14 +392,14 @@ const HomePage = () => {
                   <Text className="text-white font-medium">Cancel</Text>
                 </Pressable>
                 <Pressable
-                  onPress={() => {
+                  onPress={async () => {
                     const parsedBudget = parseFloat(tempBudget.replace(/[^0-9.-]+/g, ''));
                     if (!isNaN(parsedBudget) && parsedBudget >= 0 && parsedBudget <= 1000000000) {
-                      setBudget(parsedBudget);
-                      setBudgetPeriod(tempPeriod);
-                      setSubtractSavingsFromBudget(tempSubtractSavings);
-                      setSubtractInvestmentFromBudget(tempSubtractInvestment);
-                      setSubtractDebtFromBudget(tempSubtractDebt);
+                      await setBudget(parsedBudget);
+                      await setBudgetPeriod(tempPeriod);
+                      await setSubtractSavingsFromBudget(tempSubtractSavings);
+                      await setSubtractInvestmentFromBudget(tempSubtractInvestment);
+                      await setSubtractDebtFromBudget(tempSubtractDebt);
                       setIsBudgetModalVisible(false);
                     }
                   }}
@@ -410,6 +439,7 @@ const SummaryItem = ({
   percentage: number,
   onPress?: () => void,
 }) => {
+  const { colors } = useTheme();
   const getProgressColor = () => {
     if (category === 'expense' || category === 'debt') {
       if (percentage < 25) return '#4ADE80'; // Green
@@ -448,15 +478,18 @@ const SummaryItem = ({
           </View>
 
           {isDanger() && (
-            <View className="absolute -top-1 -right-1 bg-red-500 w-5 h-5 rounded-full items-center justify-center border-2 border-[#334155]">
+            <View 
+                className="absolute -top-1 -right-1 w-5 h-5 rounded-full items-center justify-center border-2"
+                style={{ backgroundColor: '#EF4444', borderColor: colors.card }}
+            >
               <Text className="text-white text-[10px] font-bold">!</Text>
             </View>
           )}
         </CircularProgress>
 
         <View>
-          <Text className="text-white font-bold text-lg">{title}</Text>
-          <Text className="text-slate-400 text-sm">
+          <Text className="font-bold text-lg" style={{ color: colors.foreground }}>{title}</Text>
+          <Text className="text-sm" style={{ color: colors.muted }}>
             {limit > 0
               ? `₱${amount.toLocaleString('en-US', { minimumFractionDigits: 2 })} / ₱${limit.toLocaleString('en-US', { minimumFractionDigits: 2 })}`
               : `₱${amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
@@ -465,14 +498,18 @@ const SummaryItem = ({
       </View>
       <Pressable
         onPress={onPress}
-        className="bg-[#1E293B] w-10 h-10 rounded-full items-center justify-center border border-[#90A1B9] active:opacity-70"
+        style={{ backgroundColor: colors.background, borderColor: colors.border }}
+        className="w-10 h-10 rounded-full items-center justify-center border active:opacity-70"
       >
-        <Ionicons name="add" size={24} color="white" />
+        <Ionicons name="add" size={24} color={colors.foreground} />
       </Pressable>
     </View>
   );
 };
 
-const Divider = () => <View className="h-[1px] bg-[#90A1B9]/20" />;
+const Divider = () => {
+  const { colors } = useTheme();
+  return <View className="h-[1px]" style={{ backgroundColor: colors.border + '33' }} />;
+};
 
 export default HomePage;

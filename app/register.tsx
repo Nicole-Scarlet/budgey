@@ -37,14 +37,14 @@ const Register = () => {
     };
 
     return (
-        <SafeAreaView className="flex-1 bg-slate-900">
+        <SafeAreaView className="flex-1 bg-[#1E293B]">
             <KeyboardAvoidingView
                 behavior={Platform.OS === "ios" ? "padding" : "height"}
                 className="flex-1"
             >
-                <ScrollView contentContainerStyle={{ flexGrow: 1 }} className="px-8 py-10">
+                <ScrollView contentContainerStyle={{ flexGrow: 1, paddingBottom: 100 }} className="px-8 py-10">
                     {/* Header Section */}
-                    <View className="mb-10">
+                    <View className="mb-12">
                         <Text className="text-white text-5xl font-bold mb-4">
                             Register.
                         </Text>
@@ -54,11 +54,11 @@ const Register = () => {
                     </View>
 
                     {/* Form Section */}
-                    <View className="gap-y-6">
+                    <View className="gap-y-8">
                         {/* First Name Field */}
                         <View className="gap-y-2">
                             <Text className="text-white text-lg font-semibold ml-2">First Name</Text>
-                            <View className="bg-slate-800 h-16 rounded-3xl px-6 justify-center border border-slate-700">
+                            <View className="bg-[#1E293B] h-16 rounded-3xl px-6 justify-center border border-slate-700">
                                 <TextInput
                                     className="text-white text-lg"
                                     placeholder="John"
@@ -72,7 +72,7 @@ const Register = () => {
                         {/* Last Name Field */}
                         <View className="gap-y-2">
                             <Text className="text-white text-lg font-semibold ml-2">Last Name</Text>
-                            <View className="bg-slate-800 h-16 rounded-3xl px-6 justify-center border border-slate-700">
+                            <View className="bg-[#1E293B] h-16 rounded-3xl px-6 justify-center border border-slate-700">
                                 <TextInput
                                     className="text-white text-lg"
                                     placeholder="Doe"
@@ -86,7 +86,7 @@ const Register = () => {
                         {/* Email Field */}
                         <View className="gap-y-2">
                             <Text className="text-white text-lg font-semibold ml-2">Email</Text>
-                            <View className={`bg-slate-800 h-16 rounded-3xl px-6 justify-center border ${isSubmitted && !isEmailValid ? 'border-red-500' : 'border-slate-700'}`}>
+                            <View className={`bg-[#1E293B] h-16 rounded-3xl px-6 justify-center border ${isSubmitted && !isEmailValid ? 'border-red-500' : 'border-slate-700'}`}>
                                 <TextInput
                                     className="text-white text-lg"
                                     placeholder="your@email.com"
@@ -107,7 +107,7 @@ const Register = () => {
                         {/* Phone Number Field */}
                         <View className="gap-y-2">
                             <Text className="text-white text-lg font-semibold ml-2">Phone Number</Text>
-                            <View className="bg-slate-800 h-16 rounded-3xl px-6 justify-center border border-slate-700">
+                            <View className="bg-[#1E293B] h-16 rounded-3xl px-6 justify-center border border-slate-700">
                                 <TextInput
                                     className="text-white text-lg"
                                     placeholder="0917 XXX XXXX"
@@ -122,7 +122,7 @@ const Register = () => {
                         {/* Password Field */}
                         <View className="gap-y-2">
                             <Text className="text-white text-lg font-semibold ml-2">Password</Text>
-                            <View className="bg-slate-800 h-16 rounded-3xl px-6 flex-row items-center border border-slate-700">
+                            <View className="bg-[#1E293B] h-16 rounded-3xl px-6 flex-row items-center border border-slate-700">
                                 <TextInput
                                     className="flex-1 text-white text-lg"
                                     placeholder="••••••••"
@@ -144,7 +144,7 @@ const Register = () => {
                         {/* Confirm Password Field */}
                         <View className="gap-y-2">
                             <Text className="text-white text-lg font-semibold ml-2">Confirm Password</Text>
-                            <View className="bg-slate-800 h-16 rounded-3xl px-6 flex-row items-center border border-slate-700">
+                            <View className="bg-[#1E293B] h-16 rounded-3xl px-6 flex-row items-center border border-slate-700">
                                 <TextInput
                                     className="flex-1 text-white text-lg"
                                     placeholder="••••••••"
@@ -171,7 +171,7 @@ const Register = () => {
                     </View>
 
                     {/* Action Section */}
-                    <View className="mt-12">
+                    <View className="mt-16">
                         <Pressable
                             onPress={handleRegister}
                             className={`w-full h-16 rounded-3xl items-center justify-center shadow-lg bg-slate-400 active:bg-slate-500`}

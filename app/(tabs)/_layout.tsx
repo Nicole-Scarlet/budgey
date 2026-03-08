@@ -1,4 +1,5 @@
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useTheme } from '@/contexts/ThemeContext';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Tabs, usePathname } from 'expo-router';
 import React from 'react';
@@ -6,7 +7,7 @@ import { Dimensions, View } from 'react-native';
 
 const { width } = Dimensions.get('window');
 
-const CustomTabBarBackground = () => {
+const CustomTabBarBackground = ({ colors }: { colors: any }) => {
   const notchSize = 72; // Snug against the scanner orb width
   const circleSize = 1000; // Fake border size
   const borderWidth = (circleSize - notchSize) / 2;
@@ -14,7 +15,7 @@ const CustomTabBarBackground = () => {
   return (
     <View style={{ position: 'absolute', bottom: 0, width: width, height: 107, flexDirection: 'row' }}>
       {/* Left solid part */}
-      <View style={{ flex: 1, backgroundColor: '#0F172B' }} />
+      <View style={{ flex: 1, backgroundColor: colors.secondaryCard || colors.card }} />
 
       {/* Center notch part */}
       <View style={{ width: notchSize, height: 107, overflow: 'hidden' }}>
@@ -26,25 +27,26 @@ const CustomTabBarBackground = () => {
           height: circleSize,
           borderRadius: circleSize / 2,
           backgroundColor: 'transparent',
-          borderColor: '#0F172B', // Solid color to fill the rest of the bar below the floating notch
+          borderColor: colors.secondaryCard || colors.card, // Solid color to fill the rest of the bar below the floating notch
           borderWidth: borderWidth,
         }} />
       </View>
 
       {/* Right solid part */}
-      <View style={{ flex: 1, backgroundColor: '#0F172B' }} />
+      <View style={{ flex: 1, backgroundColor: colors.secondaryCard || colors.card }} />
     </View>
   );
 };
 
 export default function TabLayout() {
+  const { isDark, colors } = useTheme();
   const colorScheme = useColorScheme();
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#FFFFFF',
-        tabBarInactiveTintColor: '#94A3B8',
+        tabBarActiveTintColor: isDark ? '#FFFFFF' : '#334155',
+        tabBarInactiveTintColor: isDark ? '#94A3B8' : '#64748B',
         tabBarStyle: {
           backgroundColor: 'transparent',
           borderTopWidth: 0,
@@ -54,7 +56,7 @@ export default function TabLayout() {
           position: 'absolute',
           elevation: 0,
         },
-        tabBarBackground: () => <CustomTabBarBackground />,
+        tabBarBackground: () => <CustomTabBarBackground colors={colors} />,
         headerShown: false,
       }}>
       <Tabs.Screen
@@ -88,7 +90,7 @@ export default function TabLayout() {
               return (
                 <View
                   style={{
-                    top: -30, // Pushed up exactly 10px to cancel the paddingTop shift and restore notch position
+                    top: -30,
                     shadowColor: '#000',
                     shadowOffset: { width: 0, height: 10 },
                     shadowOpacity: 0.3,
@@ -98,7 +100,10 @@ export default function TabLayout() {
                   className="w-[75px] h-[75px] rounded-full items-center justify-center border-2 border-white bg-transparent"
                 >
                   <View className="w-[62px] h-[62px] bg-white/10 rounded-full items-center justify-center">
-                    <View className="w-[54px] h-[54px] bg-[#0F172B] rounded-full" />
+                    <View 
+                        style={{ backgroundColor: colors.secondaryCard || colors.card }}
+                        className="w-[54px] h-[54px] rounded-full" 
+                    />
                   </View>
                 </View>
               );
@@ -107,16 +112,17 @@ export default function TabLayout() {
             return (
               <View
                 style={{
-                  top: -20, // Pushed up exactly 10px to cancel the paddingTop shift and restore notch position
+                  top: -20,
                   shadowColor: '#000',
                   shadowOffset: { width: 0, height: 5 },
                   shadowOpacity: 0.2,
                   shadowRadius: 5,
                   elevation: 5,
+                  backgroundColor: colors.secondaryCard || colors.card
                 }}
-                className="bg-[#0F172B] w-[60px] h-[60px] rounded-full items-center justify-center"
+                className="w-[60px] h-[60px] rounded-full items-center justify-center"
               >
-                <MaterialCommunityIcons name="crop-free" size={30} color="#CBD5E1" />
+                <MaterialCommunityIcons name="crop-free" size={30} color={colors.foreground} />
               </View>
             );
           },

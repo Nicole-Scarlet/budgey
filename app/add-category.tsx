@@ -3,6 +3,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 import { useTransactions } from '../contexts/TransactionContext';
+import { useTheme } from '../contexts/ThemeContext';
 
 const ICONS = [
     'smile', 'smartphone', 'crosshair', 'terminal', 'thumbs-up',
@@ -18,7 +19,8 @@ const COLORS = [
 
 export default function AddCategoryScreen() {
     const router = useRouter();
-    const params = useLocalSearchParams(); // Allow dynamic module type assignment
+    const params = useLocalSearchParams();
+    const { colors, isDark } = useTheme();
 
     const activeModule = (params.module as string) || 'Expense';
 
@@ -55,7 +57,6 @@ export default function AddCategoryScreen() {
     } = useTransactions();
     const categoryId = params.id as string | undefined;
 
-    // Get the relevant goal/limit for the current module
     const getModuleGoal = () => {
         switch (activeModule) {
             case 'Expense': return expenseGoal;
@@ -101,7 +102,7 @@ export default function AddCategoryScreen() {
         }
     }, [categoryId]);
 
-    const handleSave = () => {
+    const handleSave = async () => {
         const finalType = categoryType === 'Add More' ? customType : categoryType;
         if (!finalType.trim()) return;
 
@@ -115,9 +116,9 @@ export default function AddCategoryScreen() {
         };
 
         if (categoryId) {
-            updateCategory(categoryId, data);
+            await updateCategory(categoryId, data);
         } else {
-            addCategory(data);
+            await addCategory(data);
         }
 
         router.back();
@@ -127,31 +128,31 @@ export default function AddCategoryScreen() {
         setIsDeleteModalVisible(true);
     };
 
-    const confirmDelete = () => {
+    const confirmDelete = async () => {
         if (categoryId) {
-            deleteCategory(categoryId);
+            await deleteCategory(categoryId);
             setIsDeleteModalVisible(false);
             router.back();
         }
     };
 
     return (
-        <View className="flex-1 bg-[#1E293B]">
+        <View className="flex-1" style={{ backgroundColor: colors.background }}>
             <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
                 <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
                     <View className="flex-1">
                         {/* Header */}
                         <View className="px-6 pt-16 pb-4 flex-row items-center justify-between z-50">
                             <TouchableOpacity onPress={() => router.back()} className="p-2 -ml-2">
-                                <Feather name="arrow-left" size={24} color="#E2E8F0" />
+                                <Feather name="arrow-left" size={24} color={colors.foreground} />
                             </TouchableOpacity>
-                            <Text className="text-white text-[20px] font-bold">{categoryId ? 'Edit Category' : 'Add a Category'}</Text>
+                            <Text className="text-[20px] font-bold" style={{ color: colors.foreground }}>{categoryId ? 'Edit Category' : 'Add a Category'}</Text>
                             <TouchableOpacity
                                 onPress={handleSave}
                                 className="p-2 -mr-2"
                                 disabled={parseFloat(limit) > 1000000000}
                             >
-                                <Text className={`${parseFloat(limit) > 1000000000 ? 'text-slate-500' : 'text-[#38BDF8]'} text-[16px] font-bold`}>Done</Text>
+                                <Text className={`text-[16px] font-bold`} style={{ color: parseFloat(limit) > 1000000000 ? colors.muted : '#38BDF8' }}>Done</Text>
                             </TouchableOpacity>
                         </View>
 
@@ -160,13 +161,17 @@ export default function AddCategoryScreen() {
                             <View className="mb-10 mt-2 z-40 relative">
                                 <View className="relative z-50 mb-6">
                                     <TouchableOpacity
-                                        className="flex-row justify-between items-center py-3 border-b border-slate-600"
+                                        className="flex-row justify-between items-center py-3 border-b"
+                                        style={{ borderBottomColor: colors.border }}
                                         onPress={() => setIsTypeDropdownOpen(!isTypeDropdownOpen)}
                                     >
-                                        <Text className={`${categoryType === 'Add More' && !customType ? 'text-slate-500' : 'text-white'} text-[18px]`}>
+                                        <Text 
+                                            className="text-[18px]"
+                                            style={{ color: categoryType === 'Add More' && !customType ? colors.muted : colors.foreground }}
+                                        >
                                             {categoryType === 'Add More' ? 'Custom Type' : categoryType}
                                         </Text>
-                                        <Feather name={isTypeDropdownOpen ? "chevron-up" : "chevron-down"} size={20} color="#64748B" />
+                                        <Feather name={isTypeDropdownOpen ? "chevron-up" : "chevron-down"} size={20} color={colors.muted} />
                                     </TouchableOpacity>
 
                                     <Modal
@@ -180,17 +185,21 @@ export default function AddCategoryScreen() {
                                             className="flex-1 bg-black/40"
                                             onPress={() => setIsTypeDropdownOpen(false)}
                                         >
-                                            <View className="absolute top-80 left-6 right-6 bg-[#303E55] rounded-xl mt-2 p-2 shadow-xl border border-slate-600 z-[100]">
+                                            <View 
+                                                style={{ backgroundColor: colors.card, borderColor: colors.border }}
+                                                className="absolute top-80 left-6 right-6 rounded-xl mt-2 p-2 shadow-xl border z-[100]"
+                                            >
                                                 {suggestedTypes.map((type) => (
                                                     <TouchableOpacity
                                                         key={type}
-                                                        className="py-3 px-4 border-b border-slate-600/50 flex-row justify-between items-center"
+                                                        className="py-3 px-4 border-b flex-row justify-between items-center"
+                                                        style={{ borderBottomColor: colors.border + '80' }}
                                                         onPress={() => {
                                                             setCategoryType(type);
                                                             setIsTypeDropdownOpen(false);
                                                         }}
                                                     >
-                                                        <Text className="text-white text-[16px]">{type}</Text>
+                                                        <Text className="text-[16px]" style={{ color: colors.foreground }}>{type}</Text>
                                                         {categoryType === type && <Feather name="check" size={16} color="#38BDF8" />}
                                                     </TouchableOpacity>
                                                 ))}
@@ -200,9 +209,10 @@ export default function AddCategoryScreen() {
 
                                     {categoryType === 'Add More' && (
                                         <TextInput
-                                            className="text-white text-[16px] py-3 border-b border-slate-600 mt-2"
+                                            className="text-[16px] py-3 border-b mt-2"
+                                            style={{ color: colors.foreground, borderBottomColor: colors.border }}
                                             placeholder="Enter Custom Category Type"
-                                            placeholderTextColor="#64748B"
+                                            placeholderTextColor={colors.muted}
                                             value={customType}
                                             onChangeText={setCustomType}
                                             autoFocus
@@ -210,11 +220,15 @@ export default function AddCategoryScreen() {
                                     )}
                                 </View>
 
-                                <View className={`py-1 border-b ${isGoalMissing ? 'border-red-500/50' : 'border-slate-600'}`}>
+                                <View 
+                                    className="py-1 border-b"
+                                    style={{ borderBottomColor: isGoalMissing ? '#ef444480' : colors.border }}
+                                >
                                     <TextInput
-                                        className={`text-white text-[18px] py-2 ${isGoalMissing ? 'text-slate-500' : ''}`}
+                                        className={`text-[18px] py-2`}
+                                        style={{ color: isGoalMissing ? colors.muted : colors.foreground }}
                                         placeholder={isGoalMissing ? `Set overall ${activeModule} limit first` : "Enter Limit Amount"}
-                                        placeholderTextColor={isGoalMissing ? "#7F1D1D" : "#64748B"}
+                                        placeholderTextColor={isGoalMissing ? "#7F1D1D" : colors.muted}
                                         keyboardType="numeric"
                                         value={limit}
                                         onChangeText={(text) => setLimit(text.replace(/[^0-9.]/g, ''))}
@@ -241,7 +255,6 @@ export default function AddCategoryScreen() {
                                     const parsedLimit = parseFloat(limit);
                                     if (isNaN(parsedLimit) || parsedLimit <= 0) return null;
 
-                                    // Sum existing categories of this type
                                     const currentTypeLimitsTotal = categories
                                         .filter(c => c.type === activeModule && c.id !== categoryId)
                                         .reduce((sum, c) => sum + (c.limit || 0), 0);
@@ -251,7 +264,7 @@ export default function AddCategoryScreen() {
                                     if (projectedTotal > currentModuleGoal) {
                                         return (
                                             <View className="flex-row items-start bg-[#EAB308]/20 p-4 rounded-xl mt-4 border border-[#EAB308]/30">
-                                                <Feather name="alert-triangle" size={20} color="#EAB308" className="mt-0.5" />
+                                                <Feather name="alert-triangle" size={20} color="#EAB308" />
                                                 <View className="ml-3 flex-1 gap-y-1">
                                                     <Text className="text-[#EAB308] text-sm font-bold">
                                                         Limit Exceeded Warning
@@ -271,7 +284,10 @@ export default function AddCategoryScreen() {
                             </View>
 
                             {/* Icon Picker Accordion */}
-                            <View className="bg-[#303E55] rounded-[24px] mb-4 overflow-hidden z-10 relative">
+                            <View 
+                                style={{ backgroundColor: colors.card }}
+                                className="rounded-[24px] mb-4 overflow-hidden z-10 relative"
+                            >
                                 <TouchableOpacity
                                     className="p-5 flex-row justify-between items-center"
                                     onPress={() => {
@@ -279,18 +295,21 @@ export default function AddCategoryScreen() {
                                         if (!isIconExpanded) setIsColorExpanded(false);
                                     }}
                                 >
-                                    <Text className="text-white text-[18px] font-bold">Icon</Text>
+                                    <Text className="text-[18px] font-bold" style={{ color: colors.foreground }}>Icon</Text>
                                     <View className="flex-row items-center">
                                         {!isIconExpanded ? (
-                                            <View className="bg-[#475569] p-3 rounded-full mr-4">
-                                                <Feather name={selectedIcon as any} size={22} color="white" />
+                                            <View 
+                                                style={{ backgroundColor: colors.background }}
+                                                className="p-3 rounded-full mr-4"
+                                            >
+                                                <Feather name={selectedIcon as any} size={22} color={colors.foreground} />
                                             </View>
                                         ) : (
                                             <View className="p-2 rounded-full mr-4 border-2 border-[#38BDF8]">
                                                 <Feather name={selectedIcon as any} size={20} color="#38BDF8" />
                                             </View>
                                         )}
-                                        <Feather name={isIconExpanded ? "chevron-down" : "chevron-right"} size={24} color="#94A3B8" />
+                                        <Feather name={isIconExpanded ? "chevron-down" : "chevron-right"} size={24} color={colors.muted} />
                                     </View>
                                 </TouchableOpacity>
 
@@ -309,8 +328,11 @@ export default function AddCategoryScreen() {
                                                         borderColor: '#38BDF8',
                                                     }}
                                                 >
-                                                    <View className={`${isSelected ? '' : 'bg-[#475569]/50'} p-3 rounded-full`}>
-                                                        <Feather name={iconName as any} size={22} color={isSelected ? "#38BDF8" : "#CBD5E1"} />
+                                                    <View 
+                                                        className="p-3 rounded-full"
+                                                        style={!isSelected ? { backgroundColor: colors.background + '80' } : {}}
+                                                    >
+                                                        <Feather name={iconName as any} size={22} color={isSelected ? "#38BDF8" : colors.muted} />
                                                     </View>
                                                 </TouchableOpacity>
                                             );
@@ -320,7 +342,10 @@ export default function AddCategoryScreen() {
                             </View>
 
                             {/* Color Picker Accordion */}
-                            <View className="bg-[#303E55] rounded-[24px] mb-12 overflow-hidden z-10 relative">
+                            <View 
+                                style={{ backgroundColor: colors.card }}
+                                className="rounded-[24px] mb-12 overflow-hidden z-10 relative"
+                            >
                                 <TouchableOpacity
                                     className="p-5 flex-row justify-between items-center"
                                     onPress={() => {
@@ -328,13 +353,13 @@ export default function AddCategoryScreen() {
                                         if (!isColorExpanded) setIsIconExpanded(false);
                                     }}
                                 >
-                                    <Text className="text-white text-[18px] font-bold">Color</Text>
+                                    <Text className="text-[18px] font-bold" style={{ color: colors.foreground }}>Color</Text>
                                     <View className="flex-row items-center">
                                         <View
                                             className="w-12 h-12 rounded-full mr-4"
                                             style={{ backgroundColor: selectedColor }}
                                         />
-                                        <Feather name={isColorExpanded ? "chevron-down" : "chevron-right"} size={24} color="#94A3B8" />
+                                        <Feather name={isColorExpanded ? "chevron-down" : "chevron-right"} size={24} color={colors.muted} />
                                     </View>
                                 </TouchableOpacity>
 
@@ -370,8 +395,8 @@ export default function AddCategoryScreen() {
                                     onPress={handleDelete}
                                     className="bg-red-500/10 py-4 rounded-[24px] mb-12 items-center flex-row justify-center border border-red-500/20"
                                 >
-                                    <Feather name="trash-2" size={20} color="#F87171" className="mr-2" />
-                                    <Text className="text-[#F87171] text-[18px] font-bold">Delete Category</Text>
+                                    <Feather name="trash-2" size={20} color="#F87171" />
+                                    <Text className="text-[#F87171] text-[18px] font-bold ml-2">Delete Category</Text>
                                 </TouchableOpacity>
                             )}
 
@@ -393,9 +418,12 @@ export default function AddCategoryScreen() {
                     onPress={() => setIsDeleteModalVisible(false)}
                 >
                     <Pressable onPress={() => { }} className="w-full max-w-sm">
-                        <View className="bg-[#334155] rounded-[32px] p-6 w-full border border-slate-600">
-                            <Text className="text-white text-xl font-bold mb-3">Delete category</Text>
-                            <Text className="text-slate-300 text-[15px] leading-6 mb-8 pr-2">
+                        <View 
+                            style={{ backgroundColor: colors.card, borderColor: colors.border }}
+                            className="rounded-[32px] p-6 w-full border"
+                        >
+                            <Text className="text-xl font-bold mb-3" style={{ color: colors.foreground }}>Delete category</Text>
+                            <Text className="text-[15px] leading-6 mb-8 pr-2" style={{ color: colors.foreground + 'CC' }}>
                                 Are you sure you want to delete this category? This action is irreversible and will completely erase it. Any items or transactions under this category will also be deleted.
                             </Text>
 
