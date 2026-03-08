@@ -76,13 +76,15 @@ const HomePage = () => {
                         showsHorizontalScrollIndicator={false}
                         contentContainerStyle={{ paddingLeft: 32, paddingRight: 16 }}
                     >
-                        {topExpenses.map((item) => (
+                        {topExpenses.map((item, index) => (
                             <View key={item.id} className="bg-slate-800 w-40 p-5 rounded-3xl border border-slate-700 mr-4">
                                 <View className="w-12 h-12 bg-slate-700 rounded-2xl items-center justify-center mb-4">
-                                    <MaterialCommunityIcons name={item.icon as any} size={24} color="#94a3b8" />
+                                    <Text className="text-white text-xl font-bold">{index + 1}</Text>
                                 </View>
-                                <Text className="text-white font-bold h-10" numberOfLines={2}>{item.name}</Text>
-                                <Text className="text-slate-400 mt-2 font-medium">{item.price}</Text>
+                                <View className="h-10 justify-center">
+                                    <Text className="text-white font-bold" numberOfLines={2}>{item.name}</Text>
+                                </View>
+                                <Text className="text-slate-400 mt-auto font-medium">{item.price}</Text>
                             </View>
                         ))}
                     </ScrollView>

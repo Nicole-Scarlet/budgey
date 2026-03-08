@@ -9,6 +9,18 @@ const LogIn = () => {
     const [email, setEmail] = React.useState("");
     const [password, setPassword] = React.useState("");
     const [showPassword, setShowPassword] = React.useState(false);
+    const [isSubmitted, setIsSubmitted] = React.useState(false);
+
+    const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+    const isFormValid = isEmailValid && password.trim() !== "";
+    const hasInputs = email.trim() !== "" || password.trim() !== "";
+
+    const handleLogin = () => {
+        setIsSubmitted(true);
+        if (isFormValid) {
+            router.replace("/(tabs)");
+        }
+    };
 
     return (
         <SafeAreaView className="flex-1 bg-slate-900">
@@ -32,17 +44,25 @@ const LogIn = () => {
                         {/* Email Field */}
                         <View className="gap-y-2">
                             <Text className="text-white text-lg font-semibold ml-2">Email</Text>
-                            <View className="bg-slate-800 h-16 rounded-3xl px-6 justify-center border border-slate-700">
+                            <View className={`bg-slate-800 h-16 rounded-3xl px-6 justify-center border ${isSubmitted && !isEmailValid ? 'border-red-500' : 'border-slate-700'}`}>
                                 <TextInput
                                     className="text-white text-lg"
                                     placeholder="your@email.com"
                                     placeholderTextColor="#64748b"
                                     value={email}
-                                    onChangeText={setEmail}
+                                    onChangeText={(text) => {
+                                        setEmail(text);
+                                        if (isSubmitted) setIsSubmitted(false);
+                                    }}
                                     autoCapitalize="none"
                                     keyboardType="email-address"
                                 />
                             </View>
+                            {isSubmitted && !isEmailValid && (
+                                <Text className="text-red-500 text-sm ml-2">
+                                    Please enter a valid email address.
+                                </Text>
+                            )}
                         </View>
 
                         {/* Password Field */}
@@ -54,7 +74,10 @@ const LogIn = () => {
                                     placeholder="••••••••"
                                     placeholderTextColor="#64748b"
                                     value={password}
-                                    onChangeText={setPassword}
+                                    onChangeText={(text) => {
+                                        setPassword(text);
+                                        if (isSubmitted) setIsSubmitted(false);
+                                    }}
                                     secureTextEntry={!showPassword}
                                 />
                                 <Pressable onPress={() => setShowPassword(!showPassword)}>
@@ -71,10 +94,13 @@ const LogIn = () => {
                     {/* Action Section */}
                     <View className="mt-12 space-y-6">
                         <Pressable
-                            onPress={() => router.replace("/(tabs)")}
-                            className="w-full bg-slate-400 h-16 rounded-3xl items-center justify-center active:bg-slate-500 shadow-lg"
+                            onPress={handleLogin}
+                            disabled={!hasInputs}
+                            className={`w-full h-16 rounded-3xl items-center justify-center shadow-lg ${hasInputs ? "bg-slate-400 active:bg-slate-500" : "bg-slate-700 opacity-50"}`}
                         >
-                            <Text className="text-slate-900 text-xl font-bold">Login</Text>
+                            <Text className={`text-xl font-bold ${hasInputs ? "text-slate-900" : "text-slate-500"}`}>
+                                Login
+                            </Text>
                         </Pressable>
 
                         <View className="flex-row justify-center mt-6">

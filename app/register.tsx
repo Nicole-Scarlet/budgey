@@ -6,8 +6,35 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 const Register = () => {
     const router = useRouter();
+    const [email, setEmail] = React.useState("");
+    const [password, setPassword] = React.useState("");
+    const [confirmPassword, setConfirmPassword] = React.useState("");
+    const [firstName, setFirstName] = React.useState("");
+    const [lastName, setLastName] = React.useState("");
+    const [phone, setPhone] = React.useState("");
     const [showPassword, setShowPassword] = React.useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = React.useState(false);
+    const [isSubmitted, setIsSubmitted] = React.useState(false);
+
+    const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+    const isFormValid =
+        firstName.trim() !== "" &&
+        lastName.trim() !== "" &&
+        isEmailValid &&
+        password.trim() !== "" &&
+        password === confirmPassword;
+
+    const handleRegister = () => {
+        setIsSubmitted(true);
+        if (isFormValid) {
+            router.replace("/question");
+        }
+    };
+
+    const handleChange = (setter: React.Dispatch<React.SetStateAction<string>>) => (text: string) => {
+        setter(text);
+        if (isSubmitted) setIsSubmitted(false);
+    };
 
     return (
         <SafeAreaView className="flex-1 bg-slate-900">
@@ -28,42 +55,53 @@ const Register = () => {
 
                     {/* Form Section */}
                     <View className="gap-y-6">
-                        {/* Name Section (Row) */}
-                        <View className="flex-row gap-x-4">
-                            <View className="flex-1 gap-y-2">
-                                <Text className="text-white text-lg font-semibold ml-2">First Name</Text>
-                                <View className="bg-slate-800 h-16 rounded-3xl px-6 justify-center border border-slate-700">
-                                    <TextInput
-                                        className="text-white text-lg"
-                                        placeholder="John"
-                                        placeholderTextColor="#64748b"
-                                    />
-                                </View>
+                        {/* First Name Field */}
+                        <View className="gap-y-2">
+                            <Text className="text-white text-lg font-semibold ml-2">First Name</Text>
+                            <View className="bg-slate-800 h-16 rounded-3xl px-6 justify-center border border-slate-700">
+                                <TextInput
+                                    className="text-white text-lg"
+                                    placeholder="John"
+                                    placeholderTextColor="#64748b"
+                                    value={firstName}
+                                    onChangeText={handleChange(setFirstName)}
+                                />
                             </View>
-                            <View className="flex-1 gap-y-2">
-                                <Text className="text-white text-lg font-semibold ml-2">Last Name</Text>
-                                <View className="bg-slate-800 h-16 rounded-3xl px-6 justify-center border border-slate-700">
-                                    <TextInput
-                                        className="text-white text-lg"
-                                        placeholder="Doe"
-                                        placeholderTextColor="#64748b"
-                                    />
-                                </View>
+                        </View>
+
+                        {/* Last Name Field */}
+                        <View className="gap-y-2">
+                            <Text className="text-white text-lg font-semibold ml-2">Last Name</Text>
+                            <View className="bg-slate-800 h-16 rounded-3xl px-6 justify-center border border-slate-700">
+                                <TextInput
+                                    className="text-white text-lg"
+                                    placeholder="Doe"
+                                    placeholderTextColor="#64748b"
+                                    value={lastName}
+                                    onChangeText={handleChange(setLastName)}
+                                />
                             </View>
                         </View>
 
                         {/* Email Field */}
                         <View className="gap-y-2">
                             <Text className="text-white text-lg font-semibold ml-2">Email</Text>
-                            <View className="bg-slate-800 h-16 rounded-3xl px-6 justify-center border border-slate-700">
+                            <View className={`bg-slate-800 h-16 rounded-3xl px-6 justify-center border ${isSubmitted && !isEmailValid ? 'border-red-500' : 'border-slate-700'}`}>
                                 <TextInput
                                     className="text-white text-lg"
                                     placeholder="your@email.com"
                                     placeholderTextColor="#64748b"
+                                    value={email}
+                                    onChangeText={handleChange(setEmail)}
                                     keyboardType="email-address"
                                     autoCapitalize="none"
                                 />
                             </View>
+                            {isSubmitted && !isEmailValid && (
+                                <Text className="text-red-500 text-sm ml-2">
+                                    Please enter a valid email address.
+                                </Text>
+                            )}
                         </View>
 
                         {/* Phone Number Field */}
@@ -74,6 +112,8 @@ const Register = () => {
                                     className="text-white text-lg"
                                     placeholder="0917 XXX XXXX"
                                     placeholderTextColor="#64748b"
+                                    value={phone}
+                                    onChangeText={handleChange(setPhone)}
                                     keyboardType="phone-pad"
                                 />
                             </View>
@@ -87,6 +127,8 @@ const Register = () => {
                                     className="flex-1 text-white text-lg"
                                     placeholder="••••••••"
                                     placeholderTextColor="#64748b"
+                                    value={password}
+                                    onChangeText={handleChange(setPassword)}
                                     secureTextEntry={!showPassword}
                                 />
                                 <Pressable onPress={() => setShowPassword(!showPassword)}>
@@ -107,6 +149,8 @@ const Register = () => {
                                     className="flex-1 text-white text-lg"
                                     placeholder="••••••••"
                                     placeholderTextColor="#64748b"
+                                    value={confirmPassword}
+                                    onChangeText={handleChange(setConfirmPassword)}
                                     secureTextEntry={!showConfirmPassword}
                                 />
                                 <Pressable onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
@@ -118,15 +162,23 @@ const Register = () => {
                                 </Pressable>
                             </View>
                         </View>
+
+                        {isSubmitted && !isFormValid && (
+                            <Text className="text-red-500 text-sm ml-2 text-center mt-2">
+                                Please fill in all fields to register.
+                            </Text>
+                        )}
                     </View>
 
                     {/* Action Section */}
                     <View className="mt-12">
                         <Pressable
-                            onPress={() => router.replace("/question")}
-                            className="w-full bg-slate-400 h-16 rounded-3xl items-center justify-center active:bg-slate-500 shadow-lg"
+                            onPress={handleRegister}
+                            className={`w-full h-16 rounded-3xl items-center justify-center shadow-lg bg-slate-400 active:bg-slate-500`}
                         >
-                            <Text className="text-slate-900 text-xl font-bold">Register</Text>
+                            <Text className={`text-xl font-bold text-slate-900`}>
+                                Register
+                            </Text>
                         </Pressable>
 
                         <View className="flex-row justify-center mt-6">
