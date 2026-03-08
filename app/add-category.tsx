@@ -1,7 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { Keyboard, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
+import { Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 import { useTransactions } from '../contexts/TransactionContext';
 
 const ICONS = [
@@ -146,8 +146,12 @@ export default function AddCategoryScreen() {
                                 <Feather name="arrow-left" size={24} color="#E2E8F0" />
                             </TouchableOpacity>
                             <Text className="text-white text-[20px] font-bold">{categoryId ? 'Edit Category' : 'Add a Category'}</Text>
-                            <TouchableOpacity onPress={handleSave} className="p-2 -mr-2">
-                                <Text className="text-[#38BDF8] text-[16px] font-bold">Done</Text>
+                            <TouchableOpacity
+                                onPress={handleSave}
+                                className="p-2 -mr-2"
+                                disabled={parseFloat(limit) > 1000000000}
+                            >
+                                <Text className={`${parseFloat(limit) > 1000000000 ? 'text-slate-500' : 'text-[#38BDF8]'} text-[16px] font-bold`}>Done</Text>
                             </TouchableOpacity>
                         </View>
 
@@ -165,23 +169,34 @@ export default function AddCategoryScreen() {
                                         <Feather name={isTypeDropdownOpen ? "chevron-up" : "chevron-down"} size={20} color="#64748B" />
                                     </TouchableOpacity>
 
-                                    {isTypeDropdownOpen && (
-                                        <View className="absolute top-[100%] left-0 right-0 bg-[#303E55] rounded-xl mt-2 p-2 shadow-xl border border-slate-600 z-[100]">
-                                            {suggestedTypes.map((type) => (
-                                                <TouchableOpacity
-                                                    key={type}
-                                                    className="py-3 px-4 border-b border-slate-600/50 flex-row justify-between items-center"
-                                                    onPress={() => {
-                                                        setCategoryType(type);
-                                                        setIsTypeDropdownOpen(false);
-                                                    }}
-                                                >
-                                                    <Text className="text-white text-[16px]">{type}</Text>
-                                                    {categoryType === type && <Feather name="check" size={16} color="#38BDF8" />}
-                                                </TouchableOpacity>
-                                            ))}
-                                        </View>
-                                    )}
+                                    <Modal
+                                        visible={isTypeDropdownOpen}
+                                        transparent
+                                        animationType="none"
+                                        statusBarTranslucent={true}
+                                        onRequestClose={() => setIsTypeDropdownOpen(false)}
+                                    >
+                                        <Pressable
+                                            className="flex-1 bg-black/40"
+                                            onPress={() => setIsTypeDropdownOpen(false)}
+                                        >
+                                            <View className="absolute top-80 left-6 right-6 bg-[#303E55] rounded-xl mt-2 p-2 shadow-xl border border-slate-600 z-[100]">
+                                                {suggestedTypes.map((type) => (
+                                                    <TouchableOpacity
+                                                        key={type}
+                                                        className="py-3 px-4 border-b border-slate-600/50 flex-row justify-between items-center"
+                                                        onPress={() => {
+                                                            setCategoryType(type);
+                                                            setIsTypeDropdownOpen(false);
+                                                        }}
+                                                    >
+                                                        <Text className="text-white text-[16px]">{type}</Text>
+                                                        {categoryType === type && <Feather name="check" size={16} color="#38BDF8" />}
+                                                    </TouchableOpacity>
+                                                ))}
+                                            </View>
+                                        </Pressable>
+                                    </Modal>
 
                                     {categoryType === 'Add More' && (
                                         <TextInput
@@ -202,10 +217,13 @@ export default function AddCategoryScreen() {
                                         placeholderTextColor={isGoalMissing ? "#7F1D1D" : "#64748B"}
                                         keyboardType="numeric"
                                         value={limit}
-                                        onChangeText={setLimit}
+                                        onChangeText={(text) => setLimit(text.replace(/[^0-9.]/g, ''))}
                                         editable={!isGoalMissing}
                                     />
                                 </View>
+                                {parseFloat(limit) > 1000000000 && (
+                                    <Text className="text-red-400 text-xs mt-2 ml-1">Maximum limit is ₱1,000,000,000</Text>
+                                )}
 
                                 {isGoalMissing && (
                                     <View className="flex-row items-center bg-red-500/10 p-3 rounded-xl mt-3 border border-red-500/20">
@@ -367,25 +385,31 @@ export default function AddCategoryScreen() {
                 visible={isDeleteModalVisible}
                 transparent
                 animationType="fade"
+                statusBarTranslucent={true}
                 onRequestClose={() => setIsDeleteModalVisible(false)}
             >
-                <View className="flex-1 bg-black/60 justify-center items-center px-6">
-                    <View className="bg-[#334155] rounded-[32px] p-6 w-full max-w-sm border border-slate-600">
-                        <Text className="text-white text-xl font-bold mb-3">Delete category</Text>
-                        <Text className="text-slate-300 text-[15px] leading-6 mb-8 pr-2">
-                            Are you sure you want to delete this category? This action is irreversible and will completely erase it. Any items or transactions under this category will also be deleted.
-                        </Text>
+                <Pressable
+                    className="flex-1 bg-black/60 justify-center items-center px-6"
+                    onPress={() => setIsDeleteModalVisible(false)}
+                >
+                    <Pressable onPress={() => { }} className="w-full max-w-sm">
+                        <View className="bg-[#334155] rounded-[32px] p-6 w-full border border-slate-600">
+                            <Text className="text-white text-xl font-bold mb-3">Delete category</Text>
+                            <Text className="text-slate-300 text-[15px] leading-6 mb-8 pr-2">
+                                Are you sure you want to delete this category? This action is irreversible and will completely erase it. Any items or transactions under this category will also be deleted.
+                            </Text>
 
-                        <View className="flex-row justify-end space-x-6 gap-x-6 mt-2">
-                            <TouchableOpacity onPress={() => setIsDeleteModalVisible(false)} className="px-2 py-2">
-                                <Text className="text-[#84CC16] font-medium text-[16px]">Cancel</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity onPress={confirmDelete} className="px-2 py-2">
-                                <Text className="text-[#EF4444] font-medium text-[16px]">Yes, delete</Text>
-                            </TouchableOpacity>
+                            <View className="flex-row justify-end space-x-6 gap-x-6 mt-2">
+                                <TouchableOpacity onPress={() => setIsDeleteModalVisible(false)} className="px-2 py-2">
+                                    <Text className="text-[#84CC16] font-medium text-[16px]">Cancel</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity onPress={confirmDelete} className="px-2 py-2">
+                                    <Text className="text-[#EF4444] font-medium text-[16px]">Yes, delete</Text>
+                                </TouchableOpacity>
+                            </View>
                         </View>
-                    </View>
-                </View>
+                    </Pressable>
+                </Pressable>
             </Modal>
         </View>
     );

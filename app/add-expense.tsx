@@ -1,7 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Keyboard, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
+import { Alert, Keyboard, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTransactions } from '../contexts/TransactionContext';
 
@@ -51,7 +51,7 @@ export default function AddExpenseScreen() {
 
     const isLimitExceeded = categoryLimit > 0 && (spentInValue + amountValue) > categoryLimit;
 
-    const isValid = Boolean(amount.trim() && (itemName.trim() || passedCategoryId || selectedCategoryId));
+    const isValid = Boolean(amount.trim() && (passedCategoryId || selectedCategoryId)) && amountValue <= 1000000000;
 
     return (
         <SafeAreaView className="flex-1 bg-[#1E293B]">
@@ -86,16 +86,19 @@ export default function AddExpenseScreen() {
 
                             </View>
 
-                            <View className="bg-[#303E55] rounded-[16px] flex-row items-center px-4 h-[60px] mb-8">
+                            <View className={`bg-[#303E55] rounded-[16px] flex-row items-center px-4 h-[60px] ${parseFloat(amount) > 1000000000 ? 'border border-red-500/50' : ''}`}>
                                 <TextInput
                                     className="flex-1 text-white text-[16px]"
                                     placeholder="Amount"
                                     placeholderTextColor="#94A3B8"
                                     keyboardType="numeric"
                                     value={amount}
-                                    onChangeText={setAmount}
+                                    onChangeText={(text) => setAmount(text.replace(/[^0-9.]/g, ''))}
                                 />
                             </View>
+                            {parseFloat(amount) > 1000000000 && (
+                                <Text className="text-red-400 text-xs mt-2 ml-1">Maximum limit is ₱1,000,000,000</Text>
+                            )}
 
                             {/* Show Categories Grid ONLY if a specific category wasn't pre-selected via navigation */}
                             {!passedCategoryId && (
@@ -166,13 +169,20 @@ export default function AddExpenseScreen() {
                                 style={isValid ? { backgroundColor: moduleColor, borderColor: moduleColor } : {}}
                                 onPress={() => {
                                     if (isValid) {
-                                        // Find ID for passed category name, fallback to directly selected ID
                                         const resolvedCategoryId = passedCategoryId
                                             ? passedCategoryId
                                             : selectedCategoryId || 'uncategorized';
 
-                                        const amountValue = parseFloat(amount.replace(/[^0-9.-]+/g, ''));
+                                        if (resolvedCategoryId === 'uncategorized') {
+                                            Alert.alert(
+                                                "No Category Selected",
+                                                `Please add a category for ${activeModule} before adding a new transaction.`,
+                                                [{ text: "OK" }]
+                                            );
+                                            return;
+                                        }
 
+                                        const amountValue = parseFloat(amount.replace(/[^0-9.-]+/g, ''));
                                         const fallbackTitle = categoryName || categories.find(c => c.id === selectedCategoryId)?.name || activeModule;
 
                                         addTransaction({

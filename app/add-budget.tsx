@@ -90,6 +90,9 @@ export default function EnterBudgetScreen() {
                         <Text className="text-white text-[56px] font-bold tracking-tight">
                             ₱{formatDisplay(amountStr)}
                         </Text>
+                        {parseFloat(amountStr) > 1000000000 && (
+                            <Text className="text-red-400 text-xs mt-2 text-center">Maximum limit is ₱1,000,000,000</Text>
+                        )}
                     </View>
                 </View>
 
@@ -128,10 +131,14 @@ export default function EnterBudgetScreen() {
 
                     {/* Enter Budget Button */}
                     <TouchableOpacity
-                        className="w-full bg-[#8BA0B8] py-5 rounded-[20px] items-center justify-center mt-4 mb-4"
+                        className={`w-full py-5 rounded-[20px] items-center justify-center mt-4 mb-4 
+                            ${parseFloat(amountStr) > 1000000000 ? 'bg-red-500/30' : 'bg-[#8BA0B8]'}`}
                         onPress={handleEnterBudget}
+                        disabled={parseFloat(amountStr) > 1000000000}
                     >
-                        <Text className="text-white text-[18px] font-bold">Enter Budget</Text>
+                        <Text className={`text-[18px] font-bold ${parseFloat(amountStr) > 1000000000 ? 'text-white/50' : 'text-white'}`}>
+                            Enter Budget
+                        </Text>
                     </TouchableOpacity>
                 </View>
             </SafeAreaView>

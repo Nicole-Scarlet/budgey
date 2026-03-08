@@ -1,6 +1,6 @@
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -23,13 +23,20 @@ export default function ExpensesScreen() {
     const [isCategoryMenuVisible, setIsCategoryMenuVisible] = useState(false);
     const [isTimeFilterVisible, setIsTimeFilterVisible] = useState(false);
     const [isGoalModalVisible, setIsGoalModalVisible] = useState(false);
+
+    useFocusEffect(
+        useCallback(() => {
+            // Close the category menu when the screen loses focus
+            return () => setIsCategoryMenuVisible(false);
+        }, [])
+    );
     const [tempGoal, setTempGoal] = useState('');
     const [tempPeriod, setTempPeriod] = useState<'Daily' | 'Weekly' | 'Monthly'>(expenseGoalPeriod || 'Monthly');
     const [headerHeight, setHeaderHeight] = useState(360); // Default fallback height
     const [containerHeight, setContainerHeight] = useState(800);
     const [activeFilter, setActiveFilter] = useState<'Daily' | 'Weekly' | 'Monthly' | 'All'>('All');
 
-    const categories = [
+    const navCategories = [
         { name: 'Expenses', icon: 'cart-outline', type: 'material', active: true },
         { name: 'Income', icon: 'wallet-outline', type: 'material' },
         { name: 'Savings', icon: 'piggy-bank-outline', type: 'material' },
@@ -72,6 +79,7 @@ export default function ExpensesScreen() {
     const snapPoints = useMemo(() => [firstSnap, secondSnap], [firstSnap, secondSnap, containerHeight, headerHeight]);
 
     const handleSheetChanges = useCallback((index: number) => {
+        setIsCategoryMenuVisible(false);
         console.log('handleSheetChanges', index);
     }, []);
 
@@ -95,7 +103,7 @@ export default function ExpensesScreen() {
 
                         {isCategoryMenuVisible && (
                             <View
-                                className="mt-2 bg-[#475569] shadow-xl rounded-[16px] border border-[#64748B] overflow-hidden min-w-[200px]"
+                                className="absolute top-12 right-0 bg-[#475569] shadow-xl rounded-[16px] border border-[#64748B] overflow-hidden min-w-[200px] z-[100]"
                             >
                                 <Pressable
                                     onPress={() => {
@@ -128,11 +136,11 @@ export default function ExpensesScreen() {
                         <Text className="text-white text-[42px] font-bold tracking-tight">{formatCurrency(totalExpense)}</Text>
                         <Text className="text-white/80 text-lg font-medium mt-2 mb-2">Overall Expenses</Text>
                         {expenseGoal > 0 ? (
-                            <Pressable onPress={() => { setTempGoal(expenseGoal.toString()); setTempPeriod(expenseGoalPeriod); setIsGoalModalVisible(true); }} className="bg-[#1E293B] px-4 py-2 rounded-full border border-[#90A1B9]/30">
+                            <Pressable onPress={() => { setIsCategoryMenuVisible(false); setTempGoal(expenseGoal.toString()); setTempPeriod(expenseGoalPeriod); setIsGoalModalVisible(true); }} className="bg-[#1E293B] px-4 py-2 rounded-full border border-[#90A1B9]/30">
                                 <Text className="text-[#F97316] font-medium text-sm">Limit: ₱{expenseGoal.toLocaleString('en-US', { minimumFractionDigits: 2 })} / {expenseGoalPeriod} (Edit)</Text>
                             </Pressable>
                         ) : (
-                            <Pressable onPress={() => { setTempGoal(''); setTempPeriod('Monthly'); setIsGoalModalVisible(true); }} className="bg-[#1E293B] px-4 py-2 rounded-full border border-[#90A1B9]/30">
+                            <Pressable onPress={() => { setIsCategoryMenuVisible(false); setTempGoal(''); setTempPeriod('Monthly'); setIsGoalModalVisible(true); }} className="bg-[#1E293B] px-4 py-2 rounded-full border border-[#90A1B9]/30">
                                 <Text className="text-[#F97316] font-medium text-sm">+ Set Expense Limit</Text>
                             </Pressable>
                         )}
@@ -140,12 +148,13 @@ export default function ExpensesScreen() {
                 </View>
 
                 {/* Category Icons Row */}
-                <View className="px-4 py-6">
+                <Pressable onPress={() => setIsCategoryMenuVisible(false)} className="px-4 py-6">
                     <View className="flex-row justify-between w-full px-2">
-                        {categories.map((cat, index) => (
+                        {navCategories.map((cat, index) => (
                             <View key={index} className="items-center">
                                 <Pressable
                                     onPress={() => {
+                                        setIsCategoryMenuVisible(false);
                                         if (cat.name === 'Income') router.push('/income' as any);
                                         if (cat.name === 'Savings') router.push('/savings' as any);
                                         if (cat.name === 'Debt') router.push('/debt' as any);
@@ -167,55 +176,57 @@ export default function ExpensesScreen() {
                             </View>
                         ))}
                     </View>
-                </View>
+                </Pressable>
             </View>
 
             {/* Expense Categories List */}
             <ScrollView className="px-6 flex-1" contentContainerStyle={{ paddingBottom: 250 }} showsVerticalScrollIndicator={false}>
-                {categories.filter(c => c.type === 'Expense').length === 0 ? (
-                    <View className="flex-1 items-center justify-center pt-20">
-                        <Text className="text-white text-xl font-bold font-['Inter_700Bold'] mb-2">No categories yet.</Text>
-                        <Text className="text-[#94A3B8] text-center text-[15px] px-4 leading-6">
-                            Tap the menu icon (•••) at the top right{'\n'}to add a category.
-                        </Text>
-                    </View>
-                ) : (
-                    categories.filter(c => c.type === 'Expense').map((cat) => {
-                        const categoryTransactions = expenseTransactions.filter(t => t.categoryId === cat.id);
-                        const categorySpent = categoryTransactions.reduce((sum, t) => sum + t.amount, 0);
+                <Pressable onPress={() => setIsCategoryMenuVisible(false)}>
+                    {globalCategories.filter(c => c.type === 'Expense').length === 0 ? (
+                        <View className="flex-1 items-center justify-center pt-20">
+                            <Text className="text-white text-xl font-bold font-['Inter_700Bold'] mb-2">No categories yet.</Text>
+                            <Text className="text-[#94A3B8] text-center text-[15px] px-4 leading-6">
+                                Tap the menu icon (•••) at the top right{'\n'}to add a category.
+                            </Text>
+                        </View>
+                    ) : (
+                        globalCategories.filter(c => c.type === 'Expense').map((cat) => {
+                            const categoryTransactions = expenseTransactions.filter(t => t.categoryId === cat.id);
+                            const categorySpent = categoryTransactions.reduce((sum, t) => sum + t.amount, 0);
 
-                        return (
-                            <Pressable
-                                key={cat.id}
-                                onPress={() => router.push({ pathname: '/add-expense', params: { category: cat.id, categoryName: cat.name, module: 'Expense' } })}
-                                className="flex-row items-center justify-between py-4 border-b border-[#334155] active:bg-[#334155]/30"
-                            >
-                                <View className="flex-row items-center flex-1">
-                                    {/* Icon */}
-                                    <View
-                                        className="w-14 h-14 rounded-full border-2 items-center justify-center mr-4"
-                                        style={{ backgroundColor: `${cat.color}20`, borderColor: cat.color }}
-                                    >
-                                        <Feather name={cat.icon as any} size={24} color={cat.color} />
+                            return (
+                                <Pressable
+                                    key={cat.id}
+                                    onPress={() => router.push({ pathname: '/add-expense', params: { category: cat.id, categoryName: cat.name, module: 'Expense' } })}
+                                    className="flex-row items-center justify-between py-4 border-b border-[#334155] active:bg-[#334155]/30"
+                                >
+                                    <View className="flex-row items-center flex-1">
+                                        {/* Icon */}
+                                        <View
+                                            className="w-14 h-14 rounded-full border-2 items-center justify-center mr-4"
+                                            style={{ backgroundColor: `${cat.color}20`, borderColor: cat.color }}
+                                        >
+                                            <Feather name={cat.icon as any} size={24} color={cat.color} />
+                                        </View>
+
+                                        {/* Info */}
+                                        <View>
+                                            <Text className="text-white text-[18px] font-bold mb-1">{cat.name}</Text>
+                                            <Text className="text-[#94A3B8] text-[14px]">
+                                                Spent: ₱{categorySpent.toLocaleString('en-US', { minimumFractionDigits: 2 })} / Limit: ₱{cat.limit.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                            </Text>
+                                        </View>
                                     </View>
 
-                                    {/* Info */}
-                                    <View>
-                                        <Text className="text-white text-[18px] font-bold mb-1">{cat.name}</Text>
-                                        <Text className="text-[#94A3B8] text-[14px]">
-                                            Spent: ₱{categorySpent.toLocaleString('en-US', { minimumFractionDigits: 2 })} / Limit: ₱{cat.limit.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                                        </Text>
+                                    {/* Add button instead of Chevron since entire row adds expense */}
+                                    <View className="w-10 h-10 items-center justify-center bg-[#475569] rounded-full">
+                                        <Ionicons name="add" size={24} color="white" />
                                     </View>
-                                </View>
-
-                                {/* Add button instead of Chevron since entire row adds expense */}
-                                <View className="w-10 h-10 items-center justify-center bg-[#475569] rounded-full">
-                                    <Ionicons name="add" size={24} color="white" />
-                                </View>
-                            </Pressable>
-                        );
-                    })
-                )}
+                                </Pressable>
+                            );
+                        })
+                    )}
+                </Pressable>
             </ScrollView>
 
             {/* Bottom Sheet for Expenses Summary */}
@@ -241,24 +252,37 @@ export default function ExpensesScreen() {
                                 <Feather name="chevron-down" size={14} color="#CBD5E1" />
                             </Pressable>
 
-                            {/* Simple Dropdown Menu for Option 2 */}
-                            {isTimeFilterVisible && (
-                                <View className="absolute top-10 left-[110px] bg-[#475569] shadow-2xl rounded-xl border border-[#64748B] overflow-hidden w-32 z-50">
-                                    {['All', 'Daily', 'Weekly', 'Monthly'].map((filter) => (
-                                        <Pressable
-                                            key={filter}
-                                            onPress={() => {
-                                                setActiveFilter(filter as any);
-                                                setIsTimeFilterVisible(false);
-                                            }}
-                                            className={`px-4 py-3 border-b border-[#334155]/30 flex-row items-center justify-between ${activeFilter === filter ? 'bg-[#334155]' : ''}`}
-                                        >
-                                            <Text className={`text-sm ${activeFilter === filter ? 'text-white font-bold' : 'text-slate-300'}`}>{filter}</Text>
-                                            {activeFilter === filter && <Feather name="check" size={14} color="#4ADE80" />}
-                                        </Pressable>
-                                    ))}
-                                </View>
-                            )}
+                            <Modal
+                                visible={isTimeFilterVisible}
+                                transparent
+                                animationType="none"
+                                statusBarTranslucent={true}
+                                onRequestClose={() => setIsTimeFilterVisible(false)}
+                            >
+                                <Pressable
+                                    className="flex-1 bg-black/40"
+                                    onPress={() => setIsTimeFilterVisible(false)}
+                                >
+                                    <View
+                                        className="absolute bg-[#475569] shadow-2xl rounded-xl border border-[#64748B] overflow-hidden w-32 z-50"
+                                        style={{ top: height - firstSnap - 10, left: 135 }}
+                                    >
+                                        {['All', 'Daily', 'Weekly', 'Monthly'].map((filter) => (
+                                            <Pressable
+                                                key={`${filter}-filter`}
+                                                onPress={() => {
+                                                    setActiveFilter(filter as any);
+                                                    setIsTimeFilterVisible(false);
+                                                }}
+                                                className={`px-4 py-3 border-b border-[#334155]/30 flex-row items-center justify-between ${activeFilter === filter ? 'bg-[#334155]' : ''}`}
+                                            >
+                                                <Text className={`text-sm ${activeFilter === filter ? 'text-white font-bold' : 'text-slate-300'}`}>{filter}</Text>
+                                                {activeFilter === filter && <Feather name="check" size={14} color="#4ADE80" />}
+                                            </Pressable>
+                                        ))}
+                                    </View>
+                                </Pressable>
+                            </Modal>
                         </View>
                         <Text className="text-[#94A3B8] text-sm">{new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</Text>
                     </View>
@@ -275,7 +299,7 @@ export default function ExpensesScreen() {
                         </View>
                     ) : (
                         expenseTransactions.map((item, index) => {
-                            const category = categories.find(c => c.id === item.categoryId);
+                            const category = globalCategories.find(c => c.id === item.categoryId);
                             return (
                                 <Pressable
                                     key={item.id}
@@ -322,66 +346,80 @@ export default function ExpensesScreen() {
                 animationType="fade"
                 transparent={true}
                 visible={isGoalModalVisible}
+                statusBarTranslucent={true}
                 onRequestClose={() => setIsGoalModalVisible(false)}
             >
-                <View className="flex-1 justify-center items-center bg-black/60 px-6">
-                    <View className="bg-[#1E293B] w-full rounded-3xl p-6 border border-[#334155] shadow-2xl">
-                        <Text className="text-white text-xl font-bold mb-4">Set Expense Limit</Text>
-                        <Text className="text-slate-400 text-sm mb-4">Enter your target expense limit below:</Text>
+                <Pressable
+                    className="flex-1 bg-black/60 justify-center items-center px-6"
+                    onPress={() => setIsGoalModalVisible(false)}
+                >
+                    <Pressable onPress={() => { }} className="w-full">
+                        <View className="bg-[#1E293B] w-full rounded-3xl p-6 border border-[#334155] shadow-2xl">
+                            <Text className="text-white text-xl font-bold mb-4">Set Expense Limit</Text>
+                            <Text className="text-slate-400 text-sm mb-4">Enter your target expense limit below:</Text>
 
-                        <View className="bg-[#0F172A] rounded-2xl flex-row items-center px-4 h-14 border border-[#334155] mb-6">
-                            <Text className="text-slate-400 text-lg mr-2">₱</Text>
-                            <TextInput
-                                className="flex-1 text-white text-lg font-medium"
-                                placeholder="0.00"
-                                placeholderTextColor="#475569"
-                                keyboardType="numeric"
-                                value={tempGoal}
-                                onChangeText={setTempGoal}
-                            />
-                        </View>
+                            {parseFloat(tempGoal.replace(/[^0-9.-]+/g, '')) > 1000000000 && (
+                                <Text className="text-red-500 text-xs mb-2 font-bold">
+                                    Maximum limit is ₱1,000,000,000
+                                </Text>
+                            )}
 
-                        <Text className="text-slate-400 text-sm mb-3">Does this limit apply Daily, Weekly, or Monthly?</Text>
-                        <View className="flex-row bg-[#0F172A] rounded-xl p-1 mb-8 border border-[#334155]">
-                            {['Daily', 'Weekly', 'Monthly'].map((period) => (
+                            <View className={`bg-[#0F172A] rounded-2xl flex-row items-center px-4 h-14 border ${parseFloat(tempGoal.replace(/[^0-9.-]+/g, '')) > 1000000000 ? 'border-red-500' : 'border-[#334155]'} mb-6`}>
+                                <Text className="text-slate-400 text-lg mr-2">₱</Text>
+                                <TextInput
+                                    className="flex-1 text-white text-lg font-medium"
+                                    placeholder="0.00"
+                                    placeholderTextColor="#475569"
+                                    keyboardType="numeric"
+                                    value={tempGoal}
+                                    onChangeText={setTempGoal}
+                                />
+                            </View>
+
+                            <Text className="text-slate-400 text-sm mb-3">Does this limit apply Daily, Weekly, or Monthly?</Text>
+                            <View className="flex-row bg-[#0F172A] rounded-xl p-1 mb-8 border border-[#334155]">
+                                {['Daily', 'Weekly', 'Monthly'].map((period) => (
+                                    <Pressable
+                                        key={`${period}-goal`}
+                                        onPress={() => setTempPeriod(period as any)}
+                                        className={`flex-1 py-2.5 rounded-lg items-center ${tempPeriod === period ? 'bg-[#334155]' : ''}`}
+                                    >
+                                        <Text className={`font-medium ${tempPeriod === period ? 'text-white' : 'text-slate-400'}`}>
+                                            {period}
+                                        </Text>
+                                    </Pressable>
+                                ))}
+                            </View>
+
+                            <View className="flex-row justify-end space-x-3 gap-x-3">
                                 <Pressable
-                                    key={period}
-                                    onPress={() => setTempPeriod(period as any)}
-                                    className={`flex-1 py-2.5 rounded-lg items-center ${tempPeriod === period ? 'bg-[#334155] shadow-sm' : ''}`}
+                                    onPress={() => setIsGoalModalVisible(false)}
+                                    className="px-6 py-3 rounded-xl bg-[#334155]"
                                 >
-                                    <Text className={`font-medium ${tempPeriod === period ? 'text-white' : 'text-slate-400'}`}>
-                                        {period}
-                                    </Text>
+                                    <Text className="text-white font-medium">Cancel</Text>
                                 </Pressable>
-                            ))}
+                                <Pressable
+                                    onPress={() => {
+                                        const parsedGoal = parseFloat(tempGoal.replace(/[^0-9.-]+/g, ''));
+                                        if (!isNaN(parsedGoal) && parsedGoal > 0 && parsedGoal <= 1000000000) {
+                                            setExpenseGoal(parsedGoal);
+                                            setExpenseGoalPeriod(tempPeriod);
+                                            setIsGoalModalVisible(false);
+                                        } else if (tempGoal === '' || parsedGoal === 0) {
+                                            setExpenseGoal(0); // clear if empty
+                                            setIsGoalModalVisible(false);
+                                        }
+                                    }}
+                                    disabled={parseFloat(tempGoal.replace(/[^0-9.-]+/g, '')) > 1000000000}
+                                    className={`px-6 py-3 rounded-xl ${parseFloat(tempGoal.replace(/[^0-9.-]+/g, '')) > 1000000000 ? 'bg-gray-500' : 'bg-[#F97316]'}`}
+                                >
+                                    <Text className="text-white font-bold text-center">Save Limit</Text>
+                                </Pressable>
+                            </View>
                         </View>
-
-                        <View className="flex-row justify-end space-x-3 gap-x-3">
-                            <Pressable
-                                onPress={() => setIsGoalModalVisible(false)}
-                                className="px-6 py-3 rounded-xl bg-[#334155]"
-                            >
-                                <Text className="text-white font-medium">Cancel</Text>
-                            </Pressable>
-                            <Pressable
-                                onPress={() => {
-                                    const parsedGoal = parseFloat(tempGoal.replace(/[^0-9.-]+/g, ''));
-                                    if (!isNaN(parsedGoal) && parsedGoal > 0) {
-                                        setExpenseGoal(parsedGoal);
-                                        setExpenseGoalPeriod(tempPeriod);
-                                    } else {
-                                        setExpenseGoal(0); // clear if invalid/empty
-                                    }
-                                    setIsGoalModalVisible(false);
-                                }}
-                                className="px-6 py-3 rounded-xl bg-[#F97316]"
-                            >
-                                <Text className="text-white font-bold">Save Limit</Text>
-                            </Pressable>
-                        </View>
-                    </View>
-                </View>
+                    </Pressable>
+                </Pressable>
             </Modal>
-        </SafeAreaView>
+        </SafeAreaView >
     );
 }

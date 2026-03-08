@@ -5,7 +5,7 @@ import { ActivityIndicator, Alert, Image, Modal, Pressable, ScrollView, Text, Vi
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTransactions } from '../contexts/TransactionContext';
 
-const GEMINI_API_KEY = 'AIzaSyApkZ3XthAalffCbNBxo7wtOtCddNe9Qfg';
+const GEMINI_API_KEY = 'API KEY';
 
 export default function ScannedExpenseScreen() {
     const router = useRouter();
@@ -114,6 +114,16 @@ Return ONLY a valid JSON array of objects without any markdown formatting like \
         const missingCategories = scannedItems.some(item => !item.categoryId);
         if (missingCategories) {
             Alert.alert("Missing Category", "Please select a category for each scanned item before saving.");
+            return;
+        }
+
+        const exceedLimit = scannedItems.some(item => {
+            const val = typeof item.amount === 'number' ? item.amount : parseFloat(String(item.amount).replace(/[^0-9.-]+/g, '')) || 0;
+            return val > 1000000000;
+        });
+
+        if (exceedLimit) {
+            Alert.alert("Limit Exceeded", "One or more items exceed the maximum limit of ₱1,000,000,000.");
             return;
         }
 
@@ -230,9 +240,11 @@ Return ONLY a valid JSON array of objects without any markdown formatting like \
                             {scannedItems.length > 0 && (
                                 <Pressable
                                     onPress={handleSaveAll}
-                                    className="flex-1 border border-[#38BDF8] bg-[#3B82F6]/10 rounded-xl py-4 items-center"
+                                    disabled={scannedItems.some(item => (typeof item.amount === 'number' ? item.amount : parseFloat(String(item.amount).replace(/[^0-9.-]+/g, '')) || 0) > 1000000000)}
+                                    className={`flex-1 border border-[#38BDF8] rounded-xl py-4 items-center 
+                                        ${scannedItems.some(item => (typeof item.amount === 'number' ? item.amount : parseFloat(String(item.amount).replace(/[^0-9.-]+/g, '')) || 0) > 1000000000) ? 'bg-slate-700/50 border-slate-600' : 'bg-[#3B82F6]/10'}`}
                                 >
-                                    <Text className="text-[#38BDF8] font-bold">YES, SAVE</Text>
+                                    <Text className={`${scannedItems.some(item => (typeof item.amount === 'number' ? item.amount : parseFloat(String(item.amount).replace(/[^0-9.-]+/g, '')) || 0) > 1000000000) ? 'text-slate-500' : 'text-[#38BDF8]'} font-bold`}>YES, SAVE</Text>
                                 </Pressable>
                             )}
 

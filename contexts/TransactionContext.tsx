@@ -59,6 +59,14 @@ interface TransactionContextData {
     deleteTransaction: (id: string) => void;
     budget: number;
     setBudget: (budget: number) => void;
+    budgetPeriod: GoalPeriod;
+    setBudgetPeriod: (period: GoalPeriod) => void;
+    subtractSavingsFromBudget: boolean;
+    setSubtractSavingsFromBudget: (value: boolean) => void;
+    subtractInvestmentFromBudget: boolean;
+    setSubtractInvestmentFromBudget: (value: boolean) => void;
+    subtractDebtFromBudget: boolean;
+    setSubtractDebtFromBudget: (value: boolean) => void;
 }
 
 // Create the context with a default undefined value
@@ -84,6 +92,10 @@ export const TransactionProvider: React.FC<TransactionProviderProps> = ({ childr
     const [incomeGoalPeriod, setIncomeGoalPeriod] = useState<GoalPeriod>('Monthly');
     const [categories, setCategories] = useState<Category[]>([]);
     const [budget, setBudget] = useState<number>(0);
+    const [budgetPeriod, setBudgetPeriod] = useState<GoalPeriod>('Monthly');
+    const [subtractSavingsFromBudget, setSubtractSavingsFromBudget] = useState<boolean>(true);
+    const [subtractInvestmentFromBudget, setSubtractInvestmentFromBudget] = useState<boolean>(true);
+    const [subtractDebtFromBudget, setSubtractDebtFromBudget] = useState<boolean>(true);
 
     const addTransaction = (transactionData: Omit<Transaction, 'id'>) => {
         const newTransaction: Transaction = {
@@ -137,7 +149,12 @@ export const TransactionProvider: React.FC<TransactionProviderProps> = ({ childr
         const totalDebt = getTotalByType('debt');
         const totalInvestment = getTotalByType('investment');
 
-        return totalIncome - totalExpense - totalSavings - totalDebt - totalInvestment;
+        let balance = totalIncome - totalExpense;
+        if (subtractSavingsFromBudget) balance -= totalSavings;
+        if (subtractDebtFromBudget) balance -= totalDebt;
+        if (subtractInvestmentFromBudget) balance -= totalInvestment;
+
+        return balance;
     };
 
     return (
@@ -175,7 +192,15 @@ export const TransactionProvider: React.FC<TransactionProviderProps> = ({ childr
                 updateCategoryOrder,
                 deleteTransaction,
                 budget,
-                setBudget
+                setBudget,
+                budgetPeriod,
+                setBudgetPeriod,
+                subtractSavingsFromBudget,
+                setSubtractSavingsFromBudget,
+                subtractInvestmentFromBudget,
+                setSubtractInvestmentFromBudget,
+                subtractDebtFromBudget,
+                setSubtractDebtFromBudget
             }}
         >
             {children}

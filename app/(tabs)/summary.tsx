@@ -1,17 +1,39 @@
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTransactions } from '../../contexts/TransactionContext';
 
 export default function SummaryScreen() {
     const router = useRouter();
     const { bottom } = useSafeAreaInsets();
-    const { transactions, getTotalBalance, categories: globalCategories, budget, deleteTransaction } = useTransactions();
+    const {
+        transactions,
+        getTotalBalance,
+        categories: globalCategories,
+        budget,
+        budgetPeriod,
+        setBudget,
+        setBudgetPeriod,
+        deleteTransaction,
+        subtractSavingsFromBudget,
+        setSubtractSavingsFromBudget,
+        subtractInvestmentFromBudget,
+        setSubtractInvestmentFromBudget,
+        subtractDebtFromBudget,
+        setSubtractDebtFromBudget
+    } = useTransactions();
 
     const [filterPeriod, setFilterPeriod] = useState<'All' | 'Daily' | 'Weekly' | 'Monthly'>('All');
     const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
+
+    const [isBudgetModalVisible, setIsBudgetModalVisible] = useState(false);
+    const [tempBudget, setTempBudget] = useState('');
+    const [tempPeriod, setTempPeriod] = useState<'Daily' | 'Weekly' | 'Monthly'>('Monthly');
+    const [tempSubtractSavings, setTempSubtractSavings] = useState(true);
+    const [tempSubtractInvestment, setTempSubtractInvestment] = useState(true);
+    const [tempSubtractDebt, setTempSubtractDebt] = useState(true);
 
     const filterTransactionsByPeriod = (trans: any[]) => {
         if (filterPeriod === 'All') return trans;
@@ -49,19 +71,30 @@ export default function SummaryScreen() {
         <SafeAreaView className="flex-1 bg-[#1E293B]">
             {/* Header with Set Budget */}
             <View className="bg-[#334155] rounded-b-[40px] pt-8 pb-10 shadow-lg">
-                <View className="items-center mt-2">
+                <View className="items-center mt-2 relative">
                     <Text className="text-white text-[42px] font-bold tracking-tight">₱{budget.toLocaleString('en-US', { minimumFractionDigits: 2 })}</Text>
                     <Text className="text-white/80 text-lg font-medium mt-2">Overall Budget</Text>
 
-                    {budget === 0 ? (
-                        <Pressable onPress={() => router.push('/add-budget')} className="bg-[#1E293B] px-4 py-2 rounded-full border border-[#90A1B9]/30 mt-3">
-                            <Text className="text-[#38BDF8] font-medium text-sm">+ Set Budget</Text>
-                        </Pressable>
-                    ) : (
-                        <Pressable onPress={() => router.push('/add-budget')} className="bg-[#1E293B] px-4 py-2 rounded-full border border-[#90A1B9]/30 mt-3">
-                            <Text className="text-[#38BDF8] font-medium text-sm">Edit Budget</Text>
-                        </Pressable>
-                    )}
+                    <Pressable
+                        onPress={() => {
+                            setTempBudget(budget > 0 ? budget.toString() : '');
+                            setTempPeriod(budget > 0 ? budgetPeriod : 'Monthly');
+                            setTempSubtractSavings(subtractSavingsFromBudget);
+                            setTempSubtractInvestment(subtractInvestmentFromBudget);
+                            setTempSubtractDebt(subtractDebtFromBudget);
+                            setIsBudgetModalVisible(true)
+                        }}
+                    >
+                        {budget > 0 ? (
+                            <Text className="text-[#38BDF8] font-medium text-sm mt-3 bg-[#1E293B] px-4 py-2 rounded-full border border-[#90A1B9]/30">
+                                Limit: ₱{budget.toLocaleString('en-US', { minimumFractionDigits: 2 })} / {budgetPeriod} (Edit)
+                            </Text>
+                        ) : (
+                            <Text className="text-[#38BDF8] font-medium text-sm mt-3 bg-[#1E293B] px-4 py-2 rounded-full border border-[#90A1B9]/30">
+                                + Set Budget
+                            </Text>
+                        )}
+                    </Pressable>
                 </View>
             </View>
 
@@ -108,26 +141,36 @@ export default function SummaryScreen() {
                             <Ionicons name="funnel" size={20} color={isFilterModalVisible ? "#38BDF8" : "white"} />
                         </Pressable>
 
-                        {/* Inline Dropdown */}
-                        {isFilterModalVisible && (
-                            <View className="absolute top-[60px] right-6 bg-[#1E293B] rounded-xl border border-[#334155] shadow-2xl z-[100] w-40 overflow-hidden">
-                                {['All', 'Daily', 'Weekly', 'Monthly'].map((period, index) => (
-                                    <Pressable
-                                        key={period}
-                                        onPress={() => {
-                                            setFilterPeriod(period as any);
-                                            setIsFilterModalVisible(false);
-                                        }}
-                                        className={`flex-row items-center justify-between px-4 py-3 ${index !== 3 ? 'border-b border-[#334155]/50' : ''} ${filterPeriod === period ? 'bg-[#334155]/30' : ''}`}
-                                    >
-                                        <Text className={`font-semibold text-sm ${filterPeriod === period ? 'text-[#38BDF8]' : 'text-slate-300'}`}>
-                                            {period === 'All' ? 'All Time' : period}
-                                        </Text>
-                                        {filterPeriod === period && <Ionicons name="checkmark" size={16} color="#38BDF8" />}
-                                    </Pressable>
-                                ))}
-                            </View>
-                        )}
+                        <Modal
+                            visible={isFilterModalVisible}
+                            transparent
+                            animationType="none"
+                            statusBarTranslucent={true}
+                            onRequestClose={() => setIsFilterModalVisible(false)}
+                        >
+                            <Pressable
+                                className="flex-1 bg-black/40"
+                                onPress={() => setIsFilterModalVisible(false)}
+                            >
+                                <View className="absolute top-64 right-6 bg-[#1E293B] rounded-xl border border-[#334155] shadow-2xl z-[100] w-40 overflow-hidden">
+                                    {['All', 'Daily', 'Weekly', 'Monthly'].map((period, index) => (
+                                        <Pressable
+                                            key={`${period}-filter`}
+                                            onPress={() => {
+                                                setFilterPeriod(period as any);
+                                                setIsFilterModalVisible(false);
+                                            }}
+                                            className={`flex-row items-center justify-between px-4 py-3 ${index !== 3 ? 'border-b border-[#334155]/50' : ''} ${filterPeriod === period ? 'bg-[#334155]/30' : ''}`}
+                                        >
+                                            <Text className={`font-semibold text-sm ${filterPeriod === period ? 'text-[#38BDF8]' : 'text-slate-300'}`}>
+                                                {period === 'All' ? 'All Time' : period}
+                                            </Text>
+                                            {filterPeriod === period && <Ionicons name="checkmark" size={16} color="#38BDF8" />}
+                                        </Pressable>
+                                    ))}
+                                </View>
+                            </Pressable>
+                        </Modal>
                     </View>
 
                     <ScrollView
@@ -136,12 +179,7 @@ export default function SummaryScreen() {
                         contentContainerStyle={{ paddingBottom: bottom + 115 }}
                         scrollEnabled={!isFilterModalVisible} // prevent scrolling while dropdown is open
                     >
-                        {isFilterModalVisible && (
-                            <Pressable
-                                style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 90 }}
-                                onPress={() => setIsFilterModalVisible(false)}
-                            />
-                        )}
+                        {/* No longer need the inline Pressable overlay since we use a real Modal */}
                         {filteredTransactions.length > 0 ? (
                             filteredTransactions.map(transaction => {
                                 const category = globalCategories.find(c => c.id === transaction.categoryId);
@@ -216,6 +254,127 @@ export default function SummaryScreen() {
                     </ScrollView>
                 </View>
             </View>
+
+            {/* Budget Modal */}
+            <Modal
+                visible={isBudgetModalVisible}
+                transparent
+                animationType="fade"
+                statusBarTranslucent={true}
+                onRequestClose={() => setIsBudgetModalVisible(false)}
+            >
+                <Pressable
+                    className="flex-1 bg-black/60 justify-center items-center px-4"
+                    onPress={() => setIsBudgetModalVisible(false)}
+                >
+                    <Pressable onPress={() => { }} className="w-full">
+                        <View className="bg-[#1E293B] w-full p-6 rounded-[25px] border border-[#334155]">
+                            <Text className="text-white text-xl font-bold mb-4">Set Overall Budget</Text>
+
+                            <View className="flex-row items-center bg-[#0F172A] rounded-xl px-4 py-3 mb-4 border border-[#334155]">
+                                <Text className="text-slate-400 text-lg mr-2">₱</Text>
+                                <TextInput
+                                    className="flex-1 text-white text-lg font-medium"
+                                    placeholder="0.00"
+                                    placeholderTextColor="#475569"
+                                    keyboardType="numeric"
+                                    value={tempBudget}
+                                    onChangeText={setTempBudget}
+                                />
+                            </View>
+
+                            <Text className="text-slate-400 text-sm mb-3">Does this limit apply Daily, Weekly, or Monthly?</Text>
+                            <View className="flex-row bg-[#0F172A] rounded-xl p-1 mb-6 border border-[#334155]">
+                                {['Daily', 'Weekly', 'Monthly'].map((period) => (
+                                    <Pressable
+                                        key={`${period}-budget`}
+                                        onPress={() => setTempPeriod(period as any)}
+                                        className={`flex-1 py-2.5 rounded-lg items-center ${tempPeriod === period ? 'bg-[#334155]' : ''}`}
+                                    >
+                                        <Text className={`font-medium ${tempPeriod === period ? 'text-white' : 'text-slate-400'}`}>
+                                            {period}
+                                        </Text>
+                                    </Pressable>
+                                ))}
+                            </View>
+
+                            <View className="mb-8">
+                                <Text className="text-slate-400 text-sm mb-4">Subtract calculations from Overall Budget:</Text>
+
+                                <Pressable
+                                    onPress={() => setTempSubtractSavings(!tempSubtractSavings)}
+                                    className="flex-row items-center justify-between py-2"
+                                >
+                                    <View className="flex-row items-center gap-x-3">
+                                        <View className="bg-[#3B82F6]/20 p-2 rounded-lg">
+                                            <MaterialCommunityIcons name="piggy-bank" size={20} color="#3B82F6" />
+                                        </View>
+                                        <Text className="text-white font-medium">Subtract Savings</Text>
+                                    </View>
+                                    <View className={`w-12 h-6 rounded-full px-1 justify-center ${tempSubtractSavings ? 'bg-[#4ADE80]' : 'bg-[#334155]'}`}>
+                                        <View className={`w-4 h-4 rounded-full bg-white ${tempSubtractSavings ? 'ml-6' : 'ml-0'}`} />
+                                    </View>
+                                </Pressable>
+
+                                <Pressable
+                                    onPress={() => setTempSubtractDebt(!tempSubtractDebt)}
+                                    className="flex-row items-center justify-between py-2 mt-2"
+                                >
+                                    <View className="flex-row items-center gap-x-3">
+                                        <View className="bg-[#EF4444]/20 p-2 rounded-lg">
+                                            <MaterialCommunityIcons name="receipt-text-outline" size={20} color="#EF4444" />
+                                        </View>
+                                        <Text className="text-white font-medium">Subtract Debt</Text>
+                                    </View>
+                                    <View className={`w-12 h-6 rounded-full px-1 justify-center ${tempSubtractDebt ? 'bg-[#4ADE80]' : 'bg-[#334155]'}`}>
+                                        <View className={`w-4 h-4 rounded-full bg-white ${tempSubtractDebt ? 'ml-6' : 'ml-0'}`} />
+                                    </View>
+                                </Pressable>
+
+                                <Pressable
+                                    onPress={() => setTempSubtractInvestment(!tempSubtractInvestment)}
+                                    className="flex-row items-center justify-between py-2 mt-2"
+                                >
+                                    <View className="flex-row items-center gap-x-3">
+                                        <View className="bg-[#A855F7]/20 p-2 rounded-lg">
+                                            <MaterialCommunityIcons name="trending-up" size={20} color="#A855F7" />
+                                        </View>
+                                        <Text className="text-white font-medium">Subtract Investment</Text>
+                                    </View>
+                                    <View className={`w-12 h-6 rounded-full px-1 justify-center ${tempSubtractInvestment ? 'bg-[#4ADE80]' : 'bg-[#334155]'}`}>
+                                        <View className={`w-4 h-4 rounded-full bg-white ${tempSubtractInvestment ? 'ml-6' : 'ml-0'}`} />
+                                    </View>
+                                </Pressable>
+                            </View>
+
+                            <View className="flex-row justify-end space-x-3 gap-x-3">
+                                <Pressable
+                                    onPress={() => setIsBudgetModalVisible(false)}
+                                    className="px-6 py-3 rounded-xl bg-[#334155]"
+                                >
+                                    <Text className="text-white font-medium">Cancel</Text>
+                                </Pressable>
+                                <Pressable
+                                    onPress={() => {
+                                        const parsedBudget = parseFloat(tempBudget.replace(/[^0-9.-]+/g, ''));
+                                        if (!isNaN(parsedBudget) && parsedBudget >= 0) {
+                                            setBudget(parsedBudget);
+                                            setBudgetPeriod(tempPeriod as any);
+                                        }
+                                        setSubtractSavingsFromBudget(tempSubtractSavings);
+                                        setSubtractInvestmentFromBudget(tempSubtractInvestment);
+                                        setSubtractDebtFromBudget(tempSubtractDebt);
+                                        setIsBudgetModalVisible(false);
+                                    }}
+                                    className="px-6 py-3 rounded-xl bg-[#4ADE80]"
+                                >
+                                    <Text className="text-[#0F172A] font-bold">Save</Text>
+                                </Pressable>
+                            </View>
+                        </View>
+                    </Pressable>
+                </Pressable>
+            </Modal>
         </SafeAreaView>
     );
 }

@@ -1,15 +1,46 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import * as React from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { Keyboard, Modal, Pressable, ScrollView, Text, TextInput, TouchableWithoutFeedback, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import CircularProgress from "../../components/CircularProgress";
 import { GoalPeriod, useTransactions } from "../../contexts/TransactionContext";
 
 const HomePage = () => {
   const router = useRouter();
-  const { transactions, categories: globalCategories, getTotalBalance, getTotalByType, savingsGoal, savingsGoalPeriod, expenseGoal, expenseGoalPeriod, debtLimit, debtLimitPeriod, investmentLimit, investmentLimitPeriod, incomeGoal, budget } = useTransactions();
+  const {
+    transactions,
+    categories: globalCategories,
+    getTotalBalance,
+    getTotalByType,
+    savingsGoal,
+    savingsGoalPeriod,
+    expenseGoal,
+    expenseGoalPeriod,
+    debtLimit,
+    debtLimitPeriod,
+    investmentLimit,
+    investmentLimitPeriod,
+    incomeGoal,
+    budget,
+    budgetPeriod,
+    setBudget,
+    setBudgetPeriod,
+    subtractSavingsFromBudget,
+    setSubtractSavingsFromBudget,
+    subtractInvestmentFromBudget,
+    setSubtractInvestmentFromBudget,
+    subtractDebtFromBudget,
+    setSubtractDebtFromBudget
+  } = useTransactions();
   const { bottom } = useSafeAreaInsets();
+
+  const [isBudgetModalVisible, setIsBudgetModalVisible] = React.useState(false);
+  const [tempBudget, setTempBudget] = React.useState('');
+  const [tempPeriod, setTempPeriod] = React.useState<GoalPeriod>('Monthly');
+  const [tempSubtractSavings, setTempSubtractSavings] = React.useState(true);
+  const [tempSubtractInvestment, setTempSubtractInvestment] = React.useState(true);
+  const [tempSubtractDebt, setTempSubtractDebt] = React.useState(true);
 
   const totalIncome = getTotalByType('income');
   const baseForPercentage = totalIncome > 0 ? totalIncome : 1;
@@ -42,12 +73,29 @@ const HomePage = () => {
         {/* Balance Card */}
         <View className="px-8 mt-10">
           <View className="bg-[#334155] p-8 rounded-[25px] border border-[#90A1B9] shadow-2xl">
-            <View className="flex-row items-center justify-between">
-              <Text className="text-slate-300 text-lg font-medium">Overall Budget</Text>
-            </View>
-            <Text className="text-white text-5xl font-bold mt-2">
-              ₱{(budget + getTotalBalance()).toLocaleString('en-US', { minimumFractionDigits: 2 })}
-            </Text>
+            <Pressable
+              onPress={() => {
+                setTempBudget(budget > 0 ? budget.toString() : '');
+                setTempPeriod(budget > 0 ? budgetPeriod : 'Monthly');
+                setTempSubtractSavings(subtractSavingsFromBudget);
+                setTempSubtractInvestment(subtractInvestmentFromBudget);
+                setTempSubtractDebt(subtractDebtFromBudget);
+                setIsBudgetModalVisible(true);
+              }}
+            >
+              <View className="flex-row items-center justify-between">
+                <Text className="text-slate-300 text-lg font-medium">Overall Budget</Text>
+              </View>
+              <Text className="text-white text-5xl font-bold mt-2">
+                ₱{(budget + getTotalBalance()).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              </Text>
+
+              {budget > 0 && (
+                <Text className="text-[#4ADE80] font-medium text-sm mt-3">
+                  Limit: ₱{budget.toLocaleString('en-US', { minimumFractionDigits: 2 })} / {budgetPeriod}
+                </Text>
+              )}
+            </Pressable>
 
             <View className="flex-row justify-between mt-10 pt-8 border-t border-[#90A1B9]/30">
               <View className="items-center">
@@ -136,7 +184,7 @@ const HomePage = () => {
               percentage={
                 expenseGoal > 0
                   ? Math.min(100, (getTotalByType('expense') / expenseGoal) * 100)
-                  : Math.min(100, (getTotalByType('expense') / baseForPercentage) * 100)
+                  : 0
               }
               onPress={() => router.push('/add-expense' as any)}
             />
@@ -152,7 +200,7 @@ const HomePage = () => {
               percentage={
                 incomeGoal > 0
                   ? Math.min(100, (totalIncome / incomeGoal) * 100)
-                  : Math.min(100, (totalIncome / baseForPercentage) * 100)
+                  : 0
               }
               onPress={() => router.push('/add-income' as any)}
             />
@@ -168,7 +216,7 @@ const HomePage = () => {
               percentage={
                 savingsGoal > 0
                   ? Math.min(100, (getTotalByType('savings') / savingsGoal) * 100)
-                  : Math.min(100, (getTotalByType('savings') / baseForPercentage) * 100)
+                  : 0
               }
               onPress={() => router.push('/add-savings' as any)}
             />
@@ -184,7 +232,7 @@ const HomePage = () => {
               percentage={
                 debtLimit > 0
                   ? Math.min(100, (getTotalByType('debt') / debtLimit) * 100)
-                  : Math.min(100, (getTotalByType('debt') / baseForPercentage) * 100)
+                  : 0
               }
               onPress={() => router.push('/add-debt' as any)}
             />
@@ -200,14 +248,143 @@ const HomePage = () => {
               percentage={
                 investmentLimit > 0
                   ? Math.min(100, (getTotalByType('investment') / investmentLimit) * 100)
-                  : Math.min(100, (getTotalByType('investment') / baseForPercentage) * 100)
+                  : 0
               }
               onPress={() => router.push('/add-investment' as any)}
             />
           </View>
         </View>
       </ScrollView>
-    </SafeAreaView>
+
+      {/* Budget Modal */}
+      <Modal
+        visible={isBudgetModalVisible}
+        transparent
+        animationType="fade"
+        statusBarTranslucent={true}
+        onRequestClose={() => setIsBudgetModalVisible(false)}
+      >
+        <Pressable
+          className="flex-1 bg-black/60 justify-center items-center px-4"
+          onPress={() => {
+            Keyboard.dismiss();
+            setIsBudgetModalVisible(false);
+          }}
+        >
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <View className="bg-[#1E293B] w-full p-6 rounded-[25px] border border-[#334155]">
+              <Text className="text-white text-xl font-bold mb-4">Set Overall Budget</Text>
+
+              <View className="flex-row items-center bg-[#0F172A] rounded-xl px-4 py-3 mb-4 border border-[#334155]">
+                <Text className="text-slate-400 text-lg mr-2">₱</Text>
+                <TextInput
+                  className={`flex-1 text-white text-lg font-medium ${parseFloat(tempBudget) > 1000000000 ? 'text-red-400' : ''}`}
+                  placeholder="0.00"
+                  placeholderTextColor="#475569"
+                  keyboardType="numeric"
+                  value={tempBudget}
+                  onChangeText={(text) => setTempBudget(text.replace(/[^0-9.]/g, ''))}
+                />
+              </View>
+
+              {parseFloat(tempBudget) > 1000000000 && (
+                <Text className="text-red-400 text-xs mb-4 ml-1">Maximum limit is ₱1,000,000,000</Text>
+              )}
+
+              <Text className="text-slate-400 text-sm mb-3">Does this limit apply Daily, Weekly, or Monthly?</Text>
+              <View className="flex-row bg-[#0F172A] rounded-xl p-1 mb-6 border border-[#334155]">
+                {['Daily', 'Weekly', 'Monthly'].map((period) => (
+                  <Pressable
+                    key={`${period}-budget`}
+                    onPress={() => setTempPeriod(period as any)}
+                    className={`flex-1 py-2.5 rounded-lg items-center ${tempPeriod === period ? 'bg-[#334155]' : ''}`}
+                  >
+                    <Text className={`font-medium ${tempPeriod === period ? 'text-white' : 'text-slate-400'}`}>
+                      {period}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+
+              <View className="mb-8">
+                <Text className="text-slate-400 text-sm mb-4">Subtract calculations from Overall Budget:</Text>
+
+                <Pressable
+                  onPress={() => setTempSubtractSavings(!tempSubtractSavings)}
+                  className="flex-row items-center justify-between py-2"
+                >
+                  <View className="flex-row items-center gap-x-3">
+                    <View className="bg-[#3B82F6]/20 p-2 rounded-lg">
+                      <MaterialCommunityIcons name="piggy-bank" size={20} color="#3B82F6" />
+                    </View>
+                    <Text className="text-white font-medium">Subtract Savings</Text>
+                  </View>
+                  <View className={`w-12 h-6 rounded-full px-1 justify-center ${tempSubtractSavings ? 'bg-[#4ADE80]' : 'bg-[#334155]'}`}>
+                    <View className={`w-4 h-4 rounded-full bg-white ${tempSubtractSavings ? 'ml-6' : 'ml-0'}`} />
+                  </View>
+                </Pressable>
+
+                <Pressable
+                  onPress={() => setTempSubtractDebt(!tempSubtractDebt)}
+                  className="flex-row items-center justify-between py-2 mt-2"
+                >
+                  <View className="flex-row items-center gap-x-3">
+                    <View className="bg-[#EF4444]/20 p-2 rounded-lg">
+                      <MaterialCommunityIcons name="receipt-outline" size={20} color="#EF4444" />
+                    </View>
+                    <Text className="text-white font-medium">Subtract Debt</Text>
+                  </View>
+                  <View className={`w-12 h-6 rounded-full px-1 justify-center ${tempSubtractDebt ? 'bg-[#4ADE80]' : 'bg-[#334155]'}`}>
+                    <View className={`w-4 h-4 rounded-full bg-white ${tempSubtractDebt ? 'ml-6' : 'ml-0'}`} />
+                  </View>
+                </Pressable>
+
+                <Pressable
+                  onPress={() => setTempSubtractInvestment(!tempSubtractInvestment)}
+                  className="flex-row items-center justify-between py-2 mt-2"
+                >
+                  <View className="flex-row items-center gap-x-3">
+                    <View className="bg-[#A855F7]/20 p-2 rounded-lg">
+                      <MaterialCommunityIcons name="trending-up" size={20} color="#A855F7" />
+                    </View>
+                    <Text className="text-white font-medium">Subtract Investment</Text>
+                  </View>
+                  <View className={`w-12 h-6 rounded-full px-1 justify-center ${tempSubtractInvestment ? 'bg-[#4ADE80]' : 'bg-[#334155]'}`}>
+                    <View className={`w-4 h-4 rounded-full bg-white ${tempSubtractInvestment ? 'ml-6' : 'ml-0'}`} />
+                  </View>
+                </Pressable>
+              </View>
+
+              <View className="flex-row justify-end space-x-3 gap-x-3">
+                <Pressable
+                  onPress={() => setIsBudgetModalVisible(false)}
+                  className="px-6 py-3 rounded-xl bg-[#334155]"
+                >
+                  <Text className="text-white font-medium">Cancel</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => {
+                    const parsedBudget = parseFloat(tempBudget.replace(/[^0-9.-]+/g, ''));
+                    if (!isNaN(parsedBudget) && parsedBudget >= 0 && parsedBudget <= 1000000000) {
+                      setBudget(parsedBudget);
+                      setBudgetPeriod(tempPeriod);
+                      setSubtractSavingsFromBudget(tempSubtractSavings);
+                      setSubtractInvestmentFromBudget(tempSubtractInvestment);
+                      setSubtractDebtFromBudget(tempSubtractDebt);
+                      setIsBudgetModalVisible(false);
+                    }
+                  }}
+                  disabled={parseFloat(tempBudget) > 1000000000}
+                  className={`px-6 py-3 rounded-xl ${parseFloat(tempBudget) > 1000000000 ? 'bg-[#4ADE80]/30' : 'bg-[#4ADE80]'}`}
+                >
+                  <Text className={`font-bold ${parseFloat(tempBudget) > 1000000000 ? 'text-[#0F172A]/50' : 'text-[#0F172A]'}`}>Save</Text>
+                </Pressable>
+              </View>
+            </View>
+          </TouchableWithoutFeedback>
+        </Pressable>
+      </Modal>
+    </SafeAreaView >
   );
 };
 
@@ -235,24 +412,23 @@ const SummaryItem = ({
 }) => {
   const getProgressColor = () => {
     if (category === 'expense' || category === 'debt') {
-      // Small curve (low percentage) -> Green, Fuller curve (high percentage) -> Red/Orange
-      if (percentage < 30) return '#4ADE80';
-      if (percentage < 70) return '#EAB308';
-      return '#F97316';
+      if (percentage < 25) return '#4ADE80'; // Green
+      if (percentage < 50) return '#EAB308'; // Yellow
+      if (percentage < 75) return '#F97316'; // Orange
+      return '#EF4444'; // Red
     } else if (category === 'savings') {
-      // Bigger curve (high percentage) -> Green, Smaller curve (low percentage) -> Red
-      if (percentage >= 70) return '#4ADE80';
-      if (percentage >= 30) return '#EAB308';
-      return '#DC2626';
+      if (percentage >= 75) return '#4ADE80'; // Green
+      if (percentage >= 50) return '#EAB308'; // Yellow
+      if (percentage >= 25) return '#F97316'; // Orange
+      return '#EF4444'; // Red
     } else {
-      // Default (Income/Investment) -> Green
-      return '#4ADE80';
+      return '#4ADE80'; // Default Green (Income/Investment)
     }
   };
 
   const isDanger = () => {
-    if (category === 'expense' || category === 'debt') return percentage > 70;
-    if (category === 'savings') return percentage < 30;
+    if (category === 'expense' || category === 'debt') return percentage >= 75;
+    if (category === 'savings') return percentage < 25;
     return false;
   };
 
@@ -263,7 +439,7 @@ const SummaryItem = ({
       >
         <CircularProgress
           size={60}
-          strokeWidth={4}
+          strokeWidth={5}
           percentage={percentage}
           color={getProgressColor()}
         >
@@ -282,7 +458,7 @@ const SummaryItem = ({
           <Text className="text-white font-bold text-lg">{title}</Text>
           <Text className="text-slate-400 text-sm">
             {limit > 0
-              ? `₱${amount.toLocaleString('en-US', { minimumFractionDigits: 2 })} / ₱${limit.toLocaleString('en-US', { minimumFractionDigits: 2 })} ${period ? period : 'Goal'}`
+              ? `₱${amount.toLocaleString('en-US', { minimumFractionDigits: 2 })} / ₱${limit.toLocaleString('en-US', { minimumFractionDigits: 2 })}`
               : `₱${amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
           </Text>
         </View>
