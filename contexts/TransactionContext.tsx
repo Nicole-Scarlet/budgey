@@ -1,5 +1,6 @@
 import React, { createContext, ReactNode, useContext, useState, useEffect } from 'react';
 import { useSQLiteContext } from 'expo-sqlite';
+import { supabase } from '../services/supabase';
 
 // Define the structure of a transaction
 export type TransactionType = 'income' | 'expense' | 'savings' | 'debt' | 'investment';
@@ -96,6 +97,8 @@ interface TransactionContextData {
     addDebt: (debt: Omit<Debt, 'id' | 'remainingAmount' | 'status' | 'payments'>) => Promise<void>;
     addPayment: (debtId: string, amount: number) => Promise<void>;
     deleteDebt: (id: string) => Promise<void>;
+    syncData: () => Promise<void>;
+    clearData: () => Promise<void>;
 }
 
 // Create the context with a default undefined value
@@ -130,14 +133,44 @@ export const TransactionProvider: React.FC<TransactionProviderProps> = ({ childr
     const [subtractInvestmentFromBudget, setSubtractInvestmentFromBudget] = useState<boolean>(true);
     const [subtractDebtFromBudget, setSubtractDebtFromBudget] = useState<boolean>(true);
 
+    // Normalizes any date string (ISO or locale) to 'March 9, 2026' format
+    const normalizeDate = (dateStr: string): string => {
+        if (!dateStr) return dateStr;
+        // Already in locale format like "March 9, 2026" - check if it contains a comma
+        // ISO format is like "2026-03-09" or "2026-03-09T00:00:00"
+        try {
+            // Parse robustly by splitting ISO dates manually to avoid timezone issues
+            if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) {
+                const [year, month, day] = dateStr.substring(0, 10).split('-').map(Number);
+                const d = new Date(year, month - 1, day);
+                return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+            }
+            // Otherwise assume it's already in the correct locale format
+            return dateStr;
+        } catch {
+            return dateStr;
+        }
+    };
+
     const loadData = async () => {
         try {
+            const { data: { user } } = await supabase.auth.getUser();
+            const currentUserId = user?.id || 'local';
+
             // Load transactions
-            const txs = await db.getAllAsync<Transaction>('SELECT * FROM transactions ORDER BY date DESC');
+            const rawTxs = await db.getAllAsync<Transaction>(
+                'SELECT * FROM transactions WHERE user_id = ? ORDER BY rowid DESC', 
+                [currentUserId]
+            );
+            // Normalize dates in case some were stored in ISO format from Supabase sync
+            const txs = rawTxs.map(t => ({ ...t, date: normalizeDate(t.date) }));
             setTransactions(txs);
 
             // Load categories
-            const cats = await db.getAllAsync<any>('SELECT * FROM categories ORDER BY order_index ASC');
+            const cats = await db.getAllAsync<any>(
+                'SELECT * FROM categories WHERE user_id = ? ORDER BY order_index ASC',
+                [currentUserId]
+            );
             setCategories(cats.map(c => ({
                 id: c.id,
                 name: c.name,
@@ -150,8 +183,14 @@ export const TransactionProvider: React.FC<TransactionProviderProps> = ({ childr
             })));
 
             // Load debts
-            const debtRecords = await db.getAllAsync<any>('SELECT * FROM debts');
-            const allPayments = await db.getAllAsync<any>('SELECT * FROM debt_payments');
+            const debtRecords = await db.getAllAsync<any>(
+                'SELECT * FROM debts WHERE user_id = ?',
+                [currentUserId]
+            );
+            const allPayments = await db.getAllAsync<any>(
+                'SELECT * FROM debt_payments WHERE user_id = ?',
+                [currentUserId]
+            );
 
             const mappedDebts: Debt[] = debtRecords.map(d => ({
                 ...d,
@@ -160,7 +199,10 @@ export const TransactionProvider: React.FC<TransactionProviderProps> = ({ childr
             setDebts(mappedDebts);
 
             // Load settings
-            const settings = await db.getAllAsync<{ key: string, value: string }>('SELECT * FROM settings');
+            const settings = await db.getAllAsync<{ key: string, value: string }>(
+                'SELECT * FROM settings WHERE user_id = ?',
+                [currentUserId]
+            );
             settings.forEach(s => {
                 switch (s.key) {
                     case 'savingsGoal': setSavingsGoal(parseFloat(s.value)); break;
@@ -185,24 +227,157 @@ export const TransactionProvider: React.FC<TransactionProviderProps> = ({ childr
         }
     };
 
+    const syncData = async () => {
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+
+            console.log("Starting sync from remote for user:", user.id);
+            
+            // 1. Sync Categories
+            const { data: remoteCats } = await supabase.from('categories').select('*').eq('user_id', user.id);
+            if (remoteCats) {
+                for (const cat of remoteCats) {
+                    await db.runAsync(
+                        'INSERT OR REPLACE INTO categories (id, user_id, name, type, group_name, limit_val, icon, color, order_index) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                        [cat.id, user.id, cat.name, cat.type, cat.group_name, cat.limit_val, cat.icon, cat.color, cat.order_index]
+                    );
+                }
+            }
+            
+            // 2. Sync Transactions
+            const { data: remoteTxs } = await supabase.from('transactions').select('*').eq('user_id', user.id);
+            if (remoteTxs) {
+                for (const tx of remoteTxs) {
+                    // Normalize date from Supabase (may be ISO '2026-03-09') to locale format 'March 9, 2026'
+                    const normalizedDate = normalizeDate(tx.date);
+                    await db.runAsync(
+                        'INSERT OR REPLACE INTO transactions (id, user_id, type, amount, title, date, categoryId, image) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                        [tx.id, user.id, tx.type, tx.amount, tx.title, normalizedDate, tx.categoryId, tx.image]
+                    );
+                }
+            }
+            
+            // 3. Sync Debts
+            const { data: remoteDebts } = await supabase.from('debts').select('*').eq('user_id', user.id);
+            if (remoteDebts) {
+                for (const debt of remoteDebts) {
+                    await db.runAsync(
+                        'INSERT OR REPLACE INTO debts (id, user_id, person, description, date, initialAmount, remainingAmount, direction, status, categoryId) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                        [debt.id, user.id, debt.person, debt.description, debt.date, debt.initialAmount, debt.remainingAmount, debt.direction, debt.status, debt.categoryId]
+                    );
+                }
+            }
+
+            // 4. Sync Debt Payments
+            const { data: remotePayments } = await supabase.from('debt_payments').select('*').eq('user_id', user.id);
+            if (remotePayments) {
+                for (const p of remotePayments) {
+                    await db.runAsync(
+                        'INSERT OR REPLACE INTO debt_payments (id, user_id, debtId, amount, date) VALUES (?, ?, ?, ?, ?)',
+                        [p.id, user.id, p.debtId, p.amount, p.date]
+                    );
+                }
+            }
+
+            // 5. Sync Settings
+            const { data: remoteSettings } = await supabase.from('settings').select('*').eq('user_id', user.id);
+            if (remoteSettings) {
+                for (const s of remoteSettings) {
+                    await db.runAsync(
+                        'INSERT OR REPLACE INTO settings (key, user_id, value) VALUES (?, ?, ?)',
+                        [s.key, user.id, s.value]
+                    );
+                }
+            }
+
+            // Reload local state
+            await loadData();
+            console.log("Sync complete!");
+        } catch (error) {
+            console.error("Error syncing with Supabase:", error);
+        }
+    };
+
+    const clearData = async () => {
+        try {
+            // Only clear React state memory, DO NOT clear the SQLite database
+            // so we preserve multi-user offline data that hasn't synced yet.
+            setTransactions([]);
+            setCategories([]);
+            setDebts([]);
+            setSavingsGoal(0);
+            setSavingsGoalPeriod('Monthly');
+            setExpenseGoal(0);
+            setExpenseGoalPeriod('Monthly');
+            setDebtLimit(0);
+            setDebtLimitPeriod('Monthly');
+            setInvestmentLimit(0);
+            setInvestmentLimitPeriod('Monthly');
+            setIncomeGoal(0);
+            setIncomeGoalPeriod('Monthly');
+            setBudget(0);
+            setBudgetPeriod('Monthly');
+            setSubtractSavingsFromBudget(true);
+            setSubtractInvestmentFromBudget(true);
+            setSubtractDebtFromBudget(true);
+
+            console.log("React state contexts cleared on memory (DB values maintained).");
+        } catch (error) {
+            console.error("Error clearing local data state:", error);
+        }
+    };
+
     useEffect(() => {
         loadData();
+        syncData(); // Auto sync on load
     }, [db]);
 
     const updateSetting = async (key: string, value: string) => {
-        await db.runAsync('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)', [key, value]);
+        const { data: { user } } = await supabase.auth.getUser();
+        const currentUserId = user?.id || 'local';
+
+        // 1. Save locally
+        await db.runAsync(
+            'INSERT OR REPLACE INTO settings (key, user_id, value) VALUES (?, ?, ?)', 
+            [key, currentUserId, value]
+        );
+        
+        // 2. Push to Supabase
+        if (user) {
+            const { error } = await supabase.from('settings').upsert([
+                { user_id: user.id, key, value }
+            ], { onConflict: 'user_id,key' }); // Ensure unique per user
+            if (error) console.log("Offline: Setting saved locally only.");
+        }
     };
 
     const addTransaction = async (transactionData: Omit<Transaction, 'id'>) => {
         const id = Date.now().toString() + Math.random().toString(36).substring(7);
         const newTransaction: Transaction = { ...transactionData, id };
         
-        await db.runAsync(
-            'INSERT INTO transactions (id, type, amount, title, date, categoryId, image) VALUES (?, ?, ?, ?, ?, ?, ?)',
-            [id, newTransaction.type, newTransaction.amount, newTransaction.title, newTransaction.date, newTransaction.categoryId || null, newTransaction.image || null]
-        );
+        const { data: { user } } = await supabase.auth.getUser();
         
+        // 1. Save locally (Instant UI update)
+        await db.runAsync(
+            'INSERT INTO transactions (id, user_id, type, amount, title, date, categoryId, image) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            [id, user?.id || 'local', newTransaction.type, newTransaction.amount, newTransaction.title, newTransaction.date, newTransaction.categoryId || null, newTransaction.image || null]
+        );
         setTransactions((prev) => [newTransaction, ...prev]);
+
+        // 2. Try to push to Supabase
+        if (user) {
+            await supabase.from('transactions').insert([{
+                id,
+                user_id: user.id,
+                type: newTransaction.type,
+                amount: newTransaction.amount,
+                title: newTransaction.title,
+                date: newTransaction.date,
+                categoryId: newTransaction.categoryId || null,
+                image: newTransaction.image || null
+            }]);
+        }
     };
 
     const deleteTransaction = async (id: string) => {
@@ -215,12 +390,29 @@ export const TransactionProvider: React.FC<TransactionProviderProps> = ({ childr
         const orderIndex = categories.length > 0 ? Math.max(...categories.map(c => c.order_index || 0)) + 1 : 0;
         const newCategory: Category = { ...categoryData, id, order_index: orderIndex };
 
-        await db.runAsync(
-            'INSERT INTO categories (id, name, type, group_name, limit_val, icon, color, order_index) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-            [id, newCategory.name, newCategory.type, newCategory.group, newCategory.limit, newCategory.icon, newCategory.color, orderIndex]
-        );
+        const { data: { user } } = await supabase.auth.getUser();
 
+        // 1. Save locally
+        await db.runAsync(
+            'INSERT INTO categories (id, user_id, name, type, group_name, limit_val, icon, color, order_index) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [id, user?.id || 'local', newCategory.name, newCategory.type, newCategory.group, newCategory.limit, newCategory.icon, newCategory.color, orderIndex]
+        );
         setCategories((prev) => [...prev, newCategory]);
+
+        // 2. Push to Supabase
+        if (user) {
+            await supabase.from('categories').insert([{
+                id,
+                user_id: user.id,
+                name: newCategory.name,
+                type: newCategory.type,
+                group_name: newCategory.group,
+                limit_val: newCategory.limit,
+                icon: newCategory.icon,
+                color: newCategory.color,
+                order_index: orderIndex
+            }]);
+        }
     };
 
     const updateCategory = async (id: string, updatedFields: Partial<Category>) => {
@@ -264,12 +456,30 @@ export const TransactionProvider: React.FC<TransactionProviderProps> = ({ childr
             categoryId: debtData.categoryId
         };
 
-        await db.runAsync(
-            'INSERT INTO debts (id, person, description, date, initialAmount, remainingAmount, direction, status, categoryId) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            [id, newDebt.person, newDebt.description, newDebt.date, newDebt.initialAmount, newDebt.remainingAmount, newDebt.direction, newDebt.status, newDebt.categoryId || null]
-        );
+        const { data: { user } } = await supabase.auth.getUser();
 
+        // 1. Save locally
+        await db.runAsync(
+            'INSERT INTO debts (id, user_id, person, description, date, initialAmount, remainingAmount, direction, status, categoryId) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [id, user?.id || 'local', newDebt.person, newDebt.description, newDebt.date, newDebt.initialAmount, newDebt.remainingAmount, newDebt.direction, newDebt.status, newDebt.categoryId || null]
+        );
         setDebts((prev) => [...prev, newDebt]);
+
+        // 2. Push to Supabase
+        if (user) {
+            await supabase.from('debts').insert([{
+                id,
+                user_id: user.id,
+                person: newDebt.person,
+                description: newDebt.description,
+                date: newDebt.date,
+                initialAmount: newDebt.initialAmount,
+                remainingAmount: newDebt.remainingAmount,
+                direction: newDebt.direction,
+                status: newDebt.status,
+                categoryId: newDebt.categoryId || null
+            }]);
+        }
     };
 
     const addPayment = async (debtId: string, amount: number) => {
@@ -283,9 +493,12 @@ export const TransactionProvider: React.FC<TransactionProviderProps> = ({ childr
         const newRemaining = Math.max(0, debt.remainingAmount - amount);
         const newStatus = newRemaining <= 0 ? 'paid' : 'pending';
 
+        const { data: { user } } = await supabase.auth.getUser();
+
+        // 1. Save locally
         await db.runAsync(
-            'INSERT INTO debt_payments (id, debtId, amount, date) VALUES (?, ?, ?, ?)',
-            [paymentId, debtId, amount, date]
+            'INSERT INTO debt_payments (id, user_id, debtId, amount, date) VALUES (?, ?, ?, ?, ?)',
+            [paymentId, user?.id || 'local', debtId, amount, date]
         );
 
         await db.runAsync(
@@ -299,6 +512,22 @@ export const TransactionProvider: React.FC<TransactionProviderProps> = ({ childr
             status: newStatus,
             payments: [...d.payments, newPayment]
         } : d));
+
+        // 2. Push to Supabase
+        if (user) {
+            await supabase.from('debt_payments').insert([{
+                id: paymentId,
+                user_id: user.id,
+                debtId,
+                amount,
+                date
+            }]);
+
+            await supabase.from('debts').update({
+                remainingAmount: newRemaining,
+                status: newStatus
+            }).eq('id', debtId).eq('user_id', user.id);
+        }
         
         // Also record this as an expense if it's "I owe" (paying it off)
         // OR as income if it's "Owes me" (receiving payment)
@@ -417,7 +646,9 @@ export const TransactionProvider: React.FC<TransactionProviderProps> = ({ childr
                 debts,
                 addDebt,
                 addPayment,
-                deleteDebt
+                deleteDebt,
+                syncData,
+                clearData
             }}
         >
             {children}

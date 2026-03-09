@@ -1,7 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
+import { Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View, ActivityIndicator } from 'react-native';
 import { useTransactions } from '../contexts/TransactionContext';
 import { useTheme } from '../contexts/ThemeContext';
 
@@ -84,6 +84,7 @@ export default function AddCategoryScreen() {
     const [isColorExpanded, setIsColorExpanded] = useState(false);
 
     const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
         if (categoryId) {
@@ -103,9 +104,9 @@ export default function AddCategoryScreen() {
     }, [categoryId]);
 
     const handleSave = async () => {
+        if (isSaving) return;
         const finalType = categoryType === 'Add More' ? customType : categoryType;
         if (!finalType.trim()) return;
-
         const data = {
             name: finalType.trim(),
             type: activeModule as any,
@@ -114,14 +115,17 @@ export default function AddCategoryScreen() {
             icon: selectedIcon,
             color: selectedColor
         };
-
-        if (categoryId) {
-            await updateCategory(categoryId, data);
-        } else {
-            await addCategory(data);
+        setIsSaving(true);
+        try {
+            if (categoryId) {
+                await updateCategory(categoryId, data);
+            } else {
+                await addCategory(data);
+            }
+            router.back();
+        } finally {
+            setIsSaving(false);
         }
-
-        router.back();
     };
 
     const handleDelete = () => {
@@ -150,9 +154,13 @@ export default function AddCategoryScreen() {
                             <TouchableOpacity
                                 onPress={handleSave}
                                 className="p-2 -mr-2"
-                                disabled={parseFloat(limit) > 1000000000}
+                                disabled={parseFloat(limit) > 1000000000 || isSaving}
                             >
-                                <Text className={`text-[16px] font-bold`} style={{ color: parseFloat(limit) > 1000000000 ? colors.muted : '#38BDF8' }}>Done</Text>
+                                {isSaving ? (
+                                    <ActivityIndicator size="small" color="#38BDF8" />
+                                ) : (
+                                    <Text className={`text-[16px] font-bold`} style={{ color: parseFloat(limit) > 1000000000 ? colors.muted : '#38BDF8' }}>Done</Text>
+                                )}
                             </TouchableOpacity>
                         </View>
 

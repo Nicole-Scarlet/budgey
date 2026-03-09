@@ -1,7 +1,7 @@
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, Keyboard, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
+import { Alert, ActivityIndicator, Keyboard, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTransactions } from '../contexts/TransactionContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -44,6 +44,7 @@ export default function AddExpenseScreen() {
     const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
     const [date, setDate] = useState(new Date());
     const [calendarVisible, setCalendarVisible] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
 
     const formatDate = (date: Date) => {
         return date.toLocaleDateString('en-US', {
@@ -201,6 +202,7 @@ export default function AddExpenseScreen() {
                                 className={`px-6 py-4 rounded-[16px] w-full items-center ${isValid ? 'border-2' : ''}`}
                                 style={isValid ? { backgroundColor: moduleColor, borderColor: moduleColor } : { backgroundColor: colors.card }}
                                 onPress={async () => {
+                                    if (isSaving) return;
                                     if (isValid) {
                                         const resolvedCategoryId = passedCategoryId
                                             ? passedCategoryId
@@ -218,21 +220,30 @@ export default function AddExpenseScreen() {
                                         const amountValue = parseFloat(amount.replace(/[^0-9.-]+/g, ''));
                                         const fallbackTitle = categoryName || categories.find(c => c.id === selectedCategoryId)?.name || activeModule;
 
-                                        await addTransaction({
-                                            title: itemName.trim() || fallbackTitle,
-                                            amount: amountValue || 0,
-                                            categoryId: resolvedCategoryId as string,
-                                            type: activeModule.toLowerCase() as any,
-                                            date: formatDate(date)
-                                        });
-                                        router.back();
+                                        setIsSaving(true);
+                                        try {
+                                            await addTransaction({
+                                                title: itemName.trim() || fallbackTitle,
+                                                amount: amountValue || 0,
+                                                categoryId: resolvedCategoryId as string,
+                                                type: activeModule.toLowerCase() as any,
+                                                date: formatDate(date)
+                                            });
+                                            router.back();
+                                        } finally {
+                                            setIsSaving(false);
+                                        }
                                     }
                                 }}
-                                disabled={!isValid}
+                                disabled={!isValid || isSaving}
                             >
-                                <Text className={`text-[16px] font-bold`} style={{ color: isValid ? '#0F172A' : colors.muted }}>
-                                    ADD {activeModule.toUpperCase()}
-                                </Text>
+                                {isSaving ? (
+                                    <ActivityIndicator color="#0F172A" />
+                                ) : (
+                                    <Text className={`text-[16px] font-bold`} style={{ color: isValid ? '#0F172A' : colors.muted }}>
+                                        ADD {activeModule.toUpperCase()}
+                                    </Text>
+                                )}
                             </TouchableOpacity>
                         </View>
                     </View>

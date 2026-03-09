@@ -1,24 +1,52 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import * as React from "react";
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View, Alert, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { supabase } from "../services/supabase";
+
+import { useProfile } from "../contexts/ProfileContext";
+import { useTransactions } from "../contexts/TransactionContext";
+import { useWishlist } from "../contexts/WishlistContext";
 
 const LogIn = () => {
     const router = useRouter();
+    const { syncProfile } = useProfile();
+    const { syncData } = useTransactions();
+    const { syncWishlist } = useWishlist();
     const [email, setEmail] = React.useState("");
     const [password, setPassword] = React.useState("");
     const [showPassword, setShowPassword] = React.useState(false);
     const [isSubmitted, setIsSubmitted] = React.useState(false);
+    const [isLoading, setIsLoading] = React.useState(false);
 
     const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
     const isFormValid = isEmailValid && password.trim() !== "";
     const hasInputs = email.trim() !== "" || password.trim() !== "";
 
-    const handleLogin = () => {
+    const handleLogin = async () => {
         setIsSubmitted(true);
         if (isFormValid) {
-            router.replace("/(tabs)");
+            setIsLoading(true);
+            try {
+                const { data, error } = await supabase.auth.signInWithPassword({
+                    email,
+                    password,
+                });
+
+                if (error) {
+                    Alert.alert("Login Failed", error.message);
+                } else if (data.session) {
+                    await syncProfile();
+                    await syncData();
+                    await syncWishlist();
+                    router.replace("/(tabs)");
+                }
+            } catch (err) {
+                Alert.alert("Error", "Something went wrong. Please try again.");
+            } finally {
+                setIsLoading(false);
+            }
         }
     };
 
@@ -95,12 +123,16 @@ const LogIn = () => {
                     <View className="mt-12 space-y-6">
                         <Pressable
                             onPress={handleLogin}
-                            disabled={!hasInputs}
-                            className={`w-full h-16 rounded-3xl items-center justify-center shadow-lg ${hasInputs ? "bg-slate-400 active:bg-slate-500" : "bg-slate-700 opacity-50"}`}
+                            disabled={!hasInputs || isLoading}
+                            className={`w-full h-16 rounded-3xl items-center justify-center shadow-lg ${hasInputs ? "bg-slate-400 active:bg-slate-500" : "bg-slate-700 opacity-50"} ${isLoading ? "opacity-70" : ""}`}
                         >
-                            <Text className={`text-xl font-bold ${hasInputs ? "text-slate-900" : "text-slate-500"}`}>
-                                Login
-                            </Text>
+                            {isLoading ? (
+                                <ActivityIndicator color="#0f172a" />
+                            ) : (
+                                <Text className={`text-xl font-bold ${hasInputs ? "text-slate-900" : "text-slate-500"}`}>
+                                    Login
+                                </Text>
+                            )}
                         </Pressable>
 
                         <View className="flex-row justify-center mt-6">

@@ -1,11 +1,15 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import * as React from "react";
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View, Alert, ActivityIndicator, Modal } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { supabase } from "../services/supabase";
+
+import { useTransactions } from "../contexts/TransactionContext";
 
 const Register = () => {
     const router = useRouter();
+    const { clearData } = useTransactions();
     const [email, setEmail] = React.useState("");
     const [password, setPassword] = React.useState("");
     const [confirmPassword, setConfirmPassword] = React.useState("");
@@ -15,6 +19,10 @@ const Register = () => {
     const [showPassword, setShowPassword] = React.useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = React.useState(false);
     const [isSubmitted, setIsSubmitted] = React.useState(false);
+    const [isLoading, setIsLoading] = React.useState(false);
+    const [showVerification, setShowVerification] = React.useState(false);
+    const [verificationPin, setVerificationPin] = React.useState("");
+    const [isVerifying, setIsVerifying] = React.useState(false);
 
     const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
     const isFormValid =
@@ -24,10 +32,85 @@ const Register = () => {
         password.trim() !== "" &&
         password === confirmPassword;
 
-    const handleRegister = () => {
+    const handleRegister = async () => {
         setIsSubmitted(true);
         if (isFormValid) {
-            router.replace("/question");
+            setIsLoading(true);
+            try {
+                const { data, error } = await supabase.auth.signUp({
+                    email,
+                    password,
+                    options: {
+                        data: {
+                            first_name: firstName,
+                            last_name: lastName,
+                            phone,
+                        }
+                    }
+                });
+
+                if (error) {
+                    if (error.message.includes("already registered") || error.message.includes("User already exists")) {
+                        Alert.alert("Registration Error", "This email is already registered. Please login or use a different email.");
+                    } else {
+                        Alert.alert("Registration Error", error.message);
+                    }
+                    return;
+                }
+
+                if (data.user) {
+                    setShowVerification(true);
+                }
+            } catch (err: any) {
+                Alert.alert("Error", "Something went wrong. Please try again.");
+            } finally {
+                setIsLoading(false);
+            }
+        }
+    };
+
+    const handleVerifyPin = async () => {
+        if (verificationPin.length !== 6) {
+            Alert.alert("Invalid PIN", "Please enter the 6-digit PIN sent to your email.");
+            return;
+        }
+
+        setIsVerifying(true);
+        try {
+            const { error } = await supabase.auth.verifyOtp({
+                email,
+                token: verificationPin,
+                type: 'signup'
+            });
+
+            if (error) {
+                Alert.alert("Verification Failed", error.message);
+            } else {
+                setShowVerification(false);
+                await clearData();
+                router.replace("/question");
+            }
+        } catch (err) {
+            Alert.alert("Error", "Verification failed. Please try again.");
+        } finally {
+            setIsVerifying(false);
+        }
+    };
+
+    const handleResendPin = async () => {
+        try {
+            const { error } = await supabase.auth.resend({
+                type: 'signup',
+                email: email,
+            });
+
+            if (error) {
+                Alert.alert("Resend Failed", error.message);
+            } else {
+                Alert.alert("PIN Resent", "A new 6-digit PIN has been sent to your email.");
+            }
+        } catch (err) {
+            Alert.alert("Error", "Could not resend PIN. Please try again.");
         }
     };
 
@@ -174,12 +257,72 @@ const Register = () => {
                     <View className="mt-16">
                         <Pressable
                             onPress={handleRegister}
-                            className={`w-full h-16 rounded-3xl items-center justify-center shadow-lg bg-slate-400 active:bg-slate-500`}
+                            disabled={isLoading}
+                            className={`w-full h-16 rounded-3xl items-center justify-center shadow-lg bg-slate-400 active:bg-slate-500 ${isLoading ? 'opacity-70' : ''}`}
                         >
-                            <Text className={`text-xl font-bold text-slate-900`}>
-                                Register
-                            </Text>
+                            {isLoading ? (
+                                <ActivityIndicator color="#0f172a" />
+                            ) : (
+                                <Text className={`text-xl font-bold text-slate-900`}>
+                                    Register
+                                </Text>
+                            )}
                         </Pressable>
+
+                        <Modal
+                            visible={showVerification}
+                            transparent={true}
+                            animationType="fade"
+                        >
+                            <View className="flex-1 bg-black/60 items-center justify-center px-8">
+                                <View className="bg-[#1E293B] w-full rounded-3xl p-8 border border-slate-700 shadow-2xl">
+                                    <Text className="text-white text-3xl font-bold mb-4">Verify Email</Text>
+                                    <Text className="text-slate-300 text-base mb-8 leading-6">
+                                        We've sent a 6-digit PIN to {email}. Enter it below to verify your account.
+                                    </Text>
+
+                                    <View className="gap-y-6">
+                                        <View className="bg-[#1E293B] h-16 rounded-3xl px-6 justify-center border border-slate-700">
+                                            <TextInput
+                                                className="text-white text-2xl text-center font-bold tracking-[10px]"
+                                                placeholder="000000"
+                                                placeholderTextColor="#64748b"
+                                                value={verificationPin}
+                                                onChangeText={setVerificationPin}
+                                                keyboardType="number-pad"
+                                                maxLength={6}
+                                            />
+                                        </View>
+
+                                        <Pressable
+                                            onPress={handleVerifyPin}
+                                            disabled={isVerifying}
+                                            className={`h-16 rounded-3xl items-center justify-center bg-slate-400 active:bg-slate-500 ${isVerifying ? 'opacity-70' : ''}`}
+                                        >
+                                            {isVerifying ? (
+                                                <ActivityIndicator color="#0f172a" />
+                                            ) : (
+                                                <Text className="text-xl font-bold text-slate-900">Verify Account</Text>
+                                            )}
+                                        </Pressable>
+
+                                        <Pressable 
+                                            onPress={handleResendPin}
+                                            className="items-center mt-2"
+                                        >
+                                            <Text className="text-slate-400 font-medium underline">Didn't receive a PIN? Resend</Text>
+                                        </Pressable>
+
+                                        <Pressable 
+                                            onPress={() => setShowVerification(false)}
+                                            className="items-center mt-4"
+                                        >
+                                            <Text className="text-slate-500 font-semibold">Cancel</Text>
+                                        </Pressable>
+                                    </View>
+                                </View>
+                            </View>
+                        </Modal>
 
                         <View className="flex-row justify-center mt-6">
                             <Text className="text-slate-500 text-base">Already have an account? </Text>

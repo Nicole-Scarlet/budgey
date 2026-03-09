@@ -2,7 +2,7 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter, Stack } from "expo-router";
 import * as React from "react";
 import { useState, useEffect } from "react";
-import { Pressable, ScrollView, Text, View, Dimensions, Image, Alert, Linking, TextInput, KeyboardAvoidingView, Platform } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, Text, View, Dimensions, Image, Alert, Linking, TextInput, KeyboardAvoidingView, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useWishlist, WishlistItem } from "@/contexts/WishlistContext";
 import { formatPHP, stripNonNumeric } from "@/utils/formatters";
@@ -28,6 +28,7 @@ const WishlistScreen = () => {
     const [image, setImage] = useState<string | null>(null);
     const [url, setUrl] = useState("");
     const [calendarVisible, setCalendarVisible] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
 
     const item = selectedId ? wishlistItems.find(i => i.id === selectedId) : null;
 
@@ -87,6 +88,7 @@ const WishlistScreen = () => {
     };
 
     const handleSave = async () => {
+        if (isSaving) return;
         if (!name || !cost) {
             Alert.alert("Error", "Please fill in the item name and cost.");
             return;
@@ -97,32 +99,37 @@ const WishlistScreen = () => {
             finalDate = new Date().toISOString().split('T')[0].split('-').join(' - ');
         }
 
-        if (view === 'add') {
-            await addItem({
-                name,
-                cost: numericCost,
-                price: formatPHP(numericCost),
-                targetDate: finalDate,
-                progress: 0,
-                color: "#64748B",
-                icon: "archive-outline",
-                image: image || undefined,
-                url: url || undefined,
-                commitments: []
-            });
-            Alert.alert("Success", "Item added to wishlist!");
-        } else if (view === 'detail' && selectedId) {
-            await updateItem(selectedId, {
-                name,
-                cost: numericCost,
-                targetDate: finalDate,
-                url: url || undefined,
-                price: formatPHP(numericCost),
-                image: image || undefined
-            });
-            Alert.alert("Success", "Changes saved!");
+        setIsSaving(true);
+        try {
+            if (view === 'add') {
+                await addItem({
+                    name,
+                    cost: numericCost,
+                    price: formatPHP(numericCost),
+                    targetDate: finalDate,
+                    progress: 0,
+                    color: "#64748B",
+                    icon: "archive-outline",
+                    image: image || undefined,
+                    url: url || undefined,
+                    commitments: []
+                });
+                Alert.alert("Success", "Item added to wishlist!");
+            } else if (view === 'detail' && selectedId) {
+                await updateItem(selectedId, {
+                    name,
+                    cost: numericCost,
+                    targetDate: finalDate,
+                    url: url || undefined,
+                    price: formatPHP(numericCost),
+                    image: image || undefined
+                });
+                Alert.alert("Success", "Changes saved!");
+            }
+            setView('list');
+        } finally {
+            setIsSaving(false);
         }
-        setView('list');
     };
 
     const handleDelete = (id: number, name: string) => {
@@ -353,12 +360,19 @@ const WishlistScreen = () => {
 
                     <Pressable
                         onPress={handleSave}
+                        disabled={isSaving}
                         className={`mt-10 py-5 rounded-full items-center justify-center shadow-xl ${view === 'add' ? 'bg-[#4ADE80] shadow-[#4ADE80]/30' : 'bg-[#6366F1] shadow-[#6366F1]/30'}`}
+                        style={{ opacity: isSaving ? 0.7 : 1 }}
                     >
-                        <Text className={`text-xl font-black ${view === 'add' ? 'text-[#0F172B]' : 'text-white'}`}>
-                            {view === 'add' ? "SAVE TO WISHLIST" : "SAVE CHANGES"}
-                        </Text>
+                        {isSaving ? (
+                            <ActivityIndicator color={view === 'add' ? '#0F172B' : '#fff'} />
+                        ) : (
+                            <Text className={`text-xl font-black ${view === 'add' ? 'text-[#0F172B]' : 'text-white'}`}>
+                                {view === 'add' ? "SAVE TO WISHLIST" : "SAVE CHANGES"}
+                            </Text>
+                        )}
                     </Pressable>
+
 
                     {view === 'detail' && (
                         <>

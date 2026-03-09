@@ -16,6 +16,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTransactions } from "../contexts/TransactionContext";
@@ -36,6 +37,7 @@ export default function AddDebtScreen() {
   const [concept, setConcept] = useState("");
   const [date, setDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const formatDate = (date: Date) => {
     return date.toLocaleDateString("en-US", {
@@ -46,25 +48,27 @@ export default function AddDebtScreen() {
   };
 
   const handleAddDebt = async () => {
+    if (isSaving) return;
     const resolvedCategoryId = passedCategoryId || selectedCategoryId;
-
     if (!amount || !contact || !concept || !resolvedCategoryId) {
       alert("Please fill in all fields including category");
       return;
     }
-
     const direction = debtType === "owes_me" ? "right" : "left";
-
-    await addDebt({
-      person: contact,
-      description: concept,
-      date: formatDate(date),
-      initialAmount: parseFloat(amount) || 0,
-      direction: direction as "left" | "right",
-      categoryId: resolvedCategoryId,
-    });
-
-    router.back();
+    setIsSaving(true);
+    try {
+      await addDebt({
+        person: contact,
+        description: concept,
+        date: formatDate(date),
+        initialAmount: parseFloat(amount) || 0,
+        direction: direction as "left" | "right",
+        categoryId: resolvedCategoryId,
+      });
+      router.back();
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -304,16 +308,18 @@ export default function AddDebtScreen() {
               activeOpacity={0.8}
               className={`rounded-[15px] py-4 mt-10 items-center justify-center shadow-lg`}
               style={{
-                backgroundColor: amount && contact && (passedCategoryId || selectedCategoryId)
+                backgroundColor: amount && contact && (passedCategoryId || selectedCategoryId) && !isSaving
                   ? "#EF4444"
                   : colors.card
               }}
               onPress={handleAddDebt}
-              disabled={
-                !amount || !contact || !(passedCategoryId || selectedCategoryId)
-              }
+              disabled={!amount || !contact || !(passedCategoryId || selectedCategoryId) || isSaving}
             >
-              <Text className="text-xl font-bold" style={{ color: amount && contact && (passedCategoryId || selectedCategoryId) ? '#fff' : colors.muted }}>+ Add Debt</Text>
+              {isSaving ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text className="text-xl font-bold" style={{ color: amount && contact && (passedCategoryId || selectedCategoryId) ? '#fff' : colors.muted }}>+ Add Debt</Text>
+              )}
             </TouchableOpacity>
           </ScrollView>
         </View>

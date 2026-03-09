@@ -3,22 +3,43 @@ import { useRouter } from "expo-router";
 import * as React from "react";
 import { useProfile } from "../../contexts/ProfileContext";
 import { useTheme } from "../../contexts/ThemeContext";
-import { Pressable, ScrollView, Text, View, Switch } from "react-native";
+import { useTransactions } from "../../contexts/TransactionContext";
+import { useWishlist } from "../../contexts/WishlistContext";
+import { Pressable, ScrollView, Text, View, Switch, Alert, Image } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { supabase } from "../../services/supabase";
 
 const SettingsPage = () => {
     const router = useRouter();
     const { profile } = useProfile();
+    const { clearData } = useTransactions();
+    const { clearWishlistState } = useWishlist();
     const { isDark, toggleTheme } = useTheme();
-
     const { colors } = useTheme();
+
+    const handleLogout = async () => {
+        Alert.alert(
+            "Logout",
+            "Are you sure you want to log out?",
+            [
+                { text: "Cancel", style: "cancel" },
+                { 
+                    text: "Logout", 
+                    style: "destructive",
+                    onPress: async () => {
+                        await clearData();
+                        clearWishlistState();
+                        await supabase.auth.signOut();
+                        router.replace("/login");
+                    }
+                }
+            ]
+        );
+    };
 
     return (
         <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
-
-
             <ScrollView className="flex-1 px-6" showsVerticalScrollIndicator={false}>
-
                 {/* Profile Header */}
                 <View className="items-center mt-2 mb-8">
                     <View className="relative">
@@ -26,7 +47,15 @@ const SettingsPage = () => {
                             style={{ backgroundColor: colors.card, borderColor: colors.border }}
                             className="w-32 h-32 rounded-full border-2 items-center justify-center overflow-hidden"
                         >
-                            <Ionicons name="person" size={64} color={colors.muted} />
+                            {profile.avatarUrl ? (
+                                <Image
+                                    source={{ uri: profile.avatarUrl }}
+                                    style={{ width: '100%', height: '100%' }}
+                                    resizeMode="cover"
+                                />
+                            ) : (
+                                <Ionicons name="person" size={64} color={colors.muted} />
+                            )}
                         </View>
                         <Pressable
                             onPress={() => router.push("/edit-profile" as any)}
@@ -47,8 +76,6 @@ const SettingsPage = () => {
                     style={{ backgroundColor: colors.card, borderColor: colors.border }}
                     className="rounded-[25px] p-6 border mb-8 shadow-2xl"
                 >
-
-                    {/* Account Section */}
                     <SectionTitle title="Account" />
                     <SettingsItem icon="person-outline" label="Edit Profile" onPress={() => router.push("/edit-profile" as any)} />
                     <SettingsItem icon="shield-outline" label="Security" onPress={() => router.push("/security" as any)} />
@@ -56,14 +83,12 @@ const SettingsPage = () => {
 
                     <View className="h-[1px] my-4 mx-2" style={{ backgroundColor: colors.border + '33' }} />
 
-                    {/* Support Section */}
                     <SectionTitle title="Support" />
                     <SettingsItem icon="help-circle-outline" label="Help & Support" onPress={() => router.push("/support" as any)} />
                     <SettingsItem icon="document-text-outline" label="Terms & Conditions" onPress={() => router.push("/terms" as any)} />
 
                     <View className="h-[1px] bg-[#90A1B9]/20 my-4 mx-2" />
 
-                    {/* Appearance Section */}
                     <SectionTitle title="Appearance" />
                     <View className="flex-row items-center justify-between py-4 px-2">
                         <View className="flex-row items-center gap-x-4">
@@ -86,6 +111,7 @@ const SettingsPage = () => {
                     {/* Logout Button */}
                     <View className="mt-8 mb-4 items-center">
                         <Pressable 
+                            onPress={handleLogout}
                             style={{ backgroundColor: colors.background, borderColor: colors.border + '4D' }}
                             className="w-full py-4 rounded-[25px] items-center justify-center border active:opacity-80"
                         >
@@ -93,10 +119,8 @@ const SettingsPage = () => {
                         </Pressable>
                     </View>
                 </View>
-
-                {/* Footer */}
+                
                 <Text className="text-center mb-12 font-medium" style={{ color: colors.muted }}>Version 1.0</Text>
-
             </ScrollView>
         </SafeAreaView>
     );

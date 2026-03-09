@@ -2,7 +2,7 @@ import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useMemo, useRef, useState, useEffect } from 'react';
-import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import { Alert, Modal, ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTransactions, Debt } from '../../contexts/TransactionContext';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -26,6 +26,7 @@ export default function DebtScreen() {
     const [isLimitModalVisible, setIsLimitModalVisible] = useState(false);
     const [selectedDebt, setSelectedDebt] = useState<Debt | null>(null);
     const [paymentAmount, setPaymentAmount] = useState("");
+    const [isPaymentSaving, setIsPaymentSaving] = useState(false);
     
     const [tempLimit, setTempLimit] = useState('');
     const [tempPeriod, setTempPeriod] = useState<'Daily' | 'Weekly' | 'Monthly'>(debtLimitPeriod || 'Monthly');
@@ -76,12 +77,16 @@ export default function DebtScreen() {
     };
 
     const handleAddPayment = async () => {
-        if (!selectedDebt || !paymentAmount) return;
+        if (isPaymentSaving || !selectedDebt || !paymentAmount) return;
         const amount = parseFloat(paymentAmount);
         if (isNaN(amount) || amount <= 0) return;
-
-        await addPayment(selectedDebt.id, amount);
-        setPaymentAmount("");
+        setIsPaymentSaving(true);
+        try {
+            await addPayment(selectedDebt.id, amount);
+            setPaymentAmount("");
+        } finally {
+            setIsPaymentSaving(false);
+        }
     };
 
     const handleSheetChanges = useCallback((index: number) => {
@@ -502,9 +507,14 @@ export default function DebtScreen() {
                                     />
                                     <TouchableOpacity 
                                         onPress={handleAddPayment} 
-                                        style={[styles.paymentButton, { backgroundColor: colors.muted }]}
+                                        disabled={isPaymentSaving}
+                                        style={[styles.paymentButton, { backgroundColor: isPaymentSaving ? colors.border : colors.muted }]}
                                     >
-                                        <Text style={styles.paymentButtonText}>+ ADD PAYMENT</Text>
+                                        {isPaymentSaving ? (
+                                            <ActivityIndicator color="white" />
+                                        ) : (
+                                            <Text style={styles.paymentButtonText}>+ ADD PAYMENT</Text>
+                                        )}
                                     </TouchableOpacity>
                                 </View>
                             )}

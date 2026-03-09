@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
+import { Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useTransactions } from './../contexts/TransactionContext';
@@ -17,6 +17,7 @@ export default function AddSavingsScreen() {
     const [itemName, setItemName] = useState('');
     const [date, setDate] = useState(new Date());
     const [calendarVisible, setCalendarVisible] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
 
     const formatDate = (date: Date) => {
         return date.toLocaleDateString('en-US', {
@@ -27,16 +28,21 @@ export default function AddSavingsScreen() {
     };
 
     const handleSave = async () => {
+        if (isSaving) return;
         const amountValue = parseFloat(amount.replace(/[^0-9.-]+/g, ''));
-
         if (amountValue) {
-            await addTransaction({
-                type: 'savings',
-                amount: amountValue,
-                title: itemName.trim() || 'Savings',
-                date: formatDate(date)
-            });
-            router.back();
+            setIsSaving(true);
+            try {
+                await addTransaction({
+                    type: 'savings',
+                    amount: amountValue,
+                    title: itemName.trim() || 'Savings',
+                    date: formatDate(date)
+                });
+                router.back();
+            } finally {
+                setIsSaving(false);
+            }
         }
     };
 
@@ -108,13 +114,17 @@ export default function AddSavingsScreen() {
                         <View className="px-8 py-6 pb-12" style={{ backgroundColor: colors.background }}>
                             <Pressable
                                 onPress={handleSave}
-                                disabled={!amount || parseFloat(amount) > 1000000000}
+                                disabled={!amount || parseFloat(amount) > 1000000000 || isSaving}
                                 className={`w-full h-16 rounded-full items-center justify-center shadow-lg`}
-                                style={{ backgroundColor: (amount && parseFloat(amount) <= 1000000000) ? '#3B82F6' : colors.card, opacity: (amount && parseFloat(amount) <= 1000000000) ? 1 : 0.5 }}
+                                style={{ backgroundColor: (amount && parseFloat(amount) <= 1000000000 && !isSaving) ? '#3B82F6' : colors.card, opacity: (amount && parseFloat(amount) <= 1000000000) ? 1 : 0.5 }}
                             >
-                                <Text className="text-xl font-bold" style={{ color: (amount && parseFloat(amount) <= 1000000000) ? '#fff' : colors.muted }}>
-                                    Save Savings
-                                </Text>
+                                {isSaving ? (
+                                    <ActivityIndicator color="#fff" />
+                                ) : (
+                                    <Text className="text-xl font-bold" style={{ color: (amount && parseFloat(amount) <= 1000000000) ? '#fff' : colors.muted }}>
+                                        Save Savings
+                                    </Text>
+                                )}
                             </Pressable>
                         </View>
                     </View>

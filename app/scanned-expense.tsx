@@ -20,6 +20,7 @@ export default function ScannedExpenseScreen() {
     const { colors, isDark } = useTheme();
     const [isCategoryModalVisible, setIsCategoryModalVisible] = useState(false);
     const [selectedItemIndex, setSelectedItemIndex] = useState<number | null>(null);
+    const [isSaving, setIsSaving] = useState(false);
 
     const expenseCategories = categories.filter(c => c.type.toLowerCase() === 'expense');
 
@@ -116,36 +117,37 @@ Each object must have exactly these keys:
     }, [imageUri, imageUris]);
 
     const handleSaveAll = async () => {
+        if (isSaving) return;
         const missingCategories = scannedItems.some(item => !item.categoryId);
         if (missingCategories) {
             Alert.alert("Missing Category", "Please select a category for each scanned item before saving.");
             return;
         }
-
         const exceedLimit = scannedItems.some(item => {
             const val = typeof item.amount === 'number' ? item.amount : parseFloat(String(item.amount).replace(/[^0-9.-]+/g, '')) || 0;
             return val > 1000000000;
         });
-
         if (exceedLimit) {
             Alert.alert("Limit Exceeded", "One or more items exceed the maximum limit of ₱1,000,000,000.");
             return;
         }
-
-        for (const item of scannedItems) {
-            const amountValue = typeof item.amount === 'number' ? item.amount : parseFloat(String(item.amount).replace(/[^0-9.-]+/g, '')) || 0;
-
-            await addTransaction({
-                title: item.name || 'Unknown Item',
-                amount: amountValue,
-                categoryId: item.categoryId || 'other',
-                type: 'expense',
-                date: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
-                image: base64Images[0] || undefined // Store the first image as a reference
-            });
+        setIsSaving(true);
+        try {
+            for (const item of scannedItems) {
+                const amountValue = typeof item.amount === 'number' ? item.amount : parseFloat(String(item.amount).replace(/[^0-9.-]+/g, '')) || 0;
+                await addTransaction({
+                    title: item.name || 'Unknown Item',
+                    amount: amountValue,
+                    categoryId: item.categoryId || 'other',
+                    type: 'expense',
+                    date: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+                    image: base64Images[0] || undefined
+                });
+            }
+            router.push('/expenses');
+        } finally {
+            setIsSaving(false);
         }
-
-        router.push('/expenses');
     };
 
     return (
@@ -273,12 +275,16 @@ Each object must have exactly these keys:
                             {scannedItems.length > 0 && (
                                 <Pressable
                                     onPress={handleSaveAll}
-                                    disabled={scannedItems.some(item => (typeof item.amount === 'number' ? item.amount : parseFloat(String(item.amount).replace(/[^0-9.-]+/g, '')) || 0) > 1000000000)}
+                                    disabled={isSaving || scannedItems.some(item => (typeof item.amount === 'number' ? item.amount : parseFloat(String(item.amount).replace(/[^0-9.-]+/g, '')) || 0) > 1000000000)}
                                     className={`flex-1 border border-[#38BDF8] rounded-xl py-4 items-center 
                                         ${scannedItems.some(item => (typeof item.amount === 'number' ? item.amount : parseFloat(String(item.amount).replace(/[^0-9.-]+/g, '')) || 0) > 1000000000) ? 'border-slate-600' : 'bg-[#3B82F6]/10'}`}
                                     style={scannedItems.some(item => (typeof item.amount === 'number' ? item.amount : parseFloat(String(item.amount).replace(/[^0-9.-]+/g, '')) || 0) > 1000000000) ? { backgroundColor: colors.card } : {}}
                                 >
-                                    <Text className="font-bold" style={{ color: scannedItems.some(item => (typeof item.amount === 'number' ? item.amount : parseFloat(String(item.amount).replace(/[^0-9.-]+/g, '')) || 0) > 1000000000) ? colors.muted : '#38BDF8' }}>YES, SAVE</Text>
+                                    {isSaving ? (
+                                        <ActivityIndicator color="#38BDF8" />
+                                    ) : (
+                                        <Text className="font-bold" style={{ color: scannedItems.some(item => (typeof item.amount === 'number' ? item.amount : parseFloat(String(item.amount).replace(/[^0-9.-]+/g, '')) || 0) > 1000000000) ? colors.muted : '#38BDF8' }}>YES, SAVE</Text>
+                                    )}
                                 </Pressable>
                             )}
 

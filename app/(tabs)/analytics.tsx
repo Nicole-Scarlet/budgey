@@ -187,7 +187,7 @@ export default function AnalyticsScreen() {
     // 2. Filter transactions for these days
     const last7DaysTxs = transactions.filter(t => {
       try {
-        // Robust matching: compare normalized date strings
+        // Robust matching: compare exact date strings
         return dateStrings.some(ds => ds === t.date);
       } catch (e) {
         return false;
