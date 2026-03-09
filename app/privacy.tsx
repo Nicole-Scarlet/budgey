@@ -318,24 +318,6 @@ const PrivacyPage = () => {
                         value={notifications}
                         onValueChange={setNotifications}
                     />
-
-                    <View className="h-[1px] mx-2" style={{ backgroundColor: colors.border + '1A' }} />
-
-                    <SettingAction
-                        label="Third-Party Integrations"
-                        description="Manage connected bank accounts and apps"
-                        actionLabel="Manage"
-                        onPress={() => Alert.alert("Integrations", "Viewing 3 active connections")}
-                    />
-
-                    <View className="h-[1px] mx-2" style={{ backgroundColor: colors.border + '1A' }} />
-
-                    <SettingAction
-                        label="API Access"
-                        description="Control developer and external API tokens"
-                        actionLabel="Tokens"
-                        onPress={() => Alert.alert("API Management", "Generating token access...")}
-                    />
                 </View>
 
                 {/* 6. Legal & Policy */}

@@ -15,7 +15,6 @@ const Register = () => {
     const [confirmPassword, setConfirmPassword] = React.useState("");
     const [firstName, setFirstName] = React.useState("");
     const [lastName, setLastName] = React.useState("");
-    const [phone, setPhone] = React.useState("");
     const [showPassword, setShowPassword] = React.useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = React.useState(false);
     const [isSubmitted, setIsSubmitted] = React.useState(false);
@@ -44,7 +43,6 @@ const Register = () => {
                         data: {
                             first_name: firstName,
                             last_name: lastName,
-                            phone,
                         }
                     }
                 });
@@ -185,21 +183,6 @@ const Register = () => {
                                     Please enter a valid email address.
                                 </Text>
                             )}
-                        </View>
-
-                        {/* Phone Number Field */}
-                        <View className="gap-y-2">
-                            <Text className="text-white text-lg font-semibold ml-2">Phone Number</Text>
-                            <View className="bg-[#1E293B] h-16 rounded-3xl px-6 justify-center border border-slate-700">
-                                <TextInput
-                                    className="text-white text-lg"
-                                    placeholder="0917 XXX XXXX"
-                                    placeholderTextColor="#64748b"
-                                    value={phone}
-                                    onChangeText={handleChange(setPhone)}
-                                    keyboardType="phone-pad"
-                                />
-                            </View>
                         </View>
 
                         {/* Password Field */}

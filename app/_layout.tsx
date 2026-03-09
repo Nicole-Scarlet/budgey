@@ -20,7 +20,7 @@ import { migrateDbIfNeeded } from '@/utils/db-init';
 SplashScreen.preventAutoHideAsync();
 
 export const unstable_settings = {
-  initialRouteName: 'intro',
+  initialRouteName: 'index',
 };
 
 // Inner component to bridge AppTheme state to Navigation theme
@@ -58,6 +58,7 @@ export default function RootLayout() {
               <ProfileProvider>
                 <ThemeBridge>
                   <Stack>
+                    <Stack.Screen name="index" options={{ headerShown: false }} />
                     <Stack.Screen name="intro" options={{ headerShown: false }} />
                     <Stack.Screen name="login" options={{ headerShown: false }} />
                     <Stack.Screen name="register" options={{ headerShown: false }} />

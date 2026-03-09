@@ -27,7 +27,6 @@ const ProfileScreen = () => {
     const [firstName, setFirstName] = React.useState(profile.firstName);
     const [lastName, setLastName] = React.useState(profile.lastName);
     const [email, setEmail] = React.useState(profile.email);
-    const [phone, setPhone] = React.useState(profile.phone);
     const [avatarUri, setAvatarUri] = React.useState<string | undefined>(profile.avatarUrl);
     const [isUploadingAvatar, setIsUploadingAvatar] = React.useState(false);
 
@@ -110,7 +109,6 @@ const ProfileScreen = () => {
             firstName,
             lastName,
             email,
-            phone,
         });
         router.back();
     };
@@ -225,25 +223,6 @@ const ProfileScreen = () => {
                                     onChangeText={setEmail}
                                     autoCapitalize="none"
                                     keyboardType="email-address"
-                                />
-                            </View>
-                        </View>
-
-                        {/* Phone Number Field */}
-                        <View className="gap-y-2">
-                            <Text className="text-lg font-semibold ml-2" style={{ color: colors.foreground }}>Phone Number</Text>
-                            <View
-                                style={{ backgroundColor: colors.card, borderColor: colors.border + '80' }}
-                                className="h-16 rounded-[25px] px-6 justify-center border"
-                            >
-                                <TextInput
-                                    className="text-lg"
-                                    style={{ color: colors.foreground }}
-                                    placeholder="0917 XXX XXXX"
-                                    placeholderTextColor={colors.muted}
-                                    value={phone}
-                                    onChangeText={setPhone}
-                                    keyboardType="phone-pad"
                                 />
                             </View>
                         </View>

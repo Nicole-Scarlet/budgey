@@ -6,7 +6,6 @@ export interface ProfileData {
     firstName: string;
     lastName: string;
     email: string;
-    phone: string;
     password?: string;
     avatarUrl?: string; // base64 string or null
 }
@@ -22,7 +21,6 @@ const defaultProfile: ProfileData = {
     firstName: "User",
     lastName: "",
     email: "",
-    phone: "",
     password: "",
     avatarUrl: undefined,
 };
@@ -39,7 +37,7 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
             const currentUserId = user?.id || 'local';
 
             const result = await db.getFirstAsync<ProfileData>(
-                "SELECT firstName, lastName, email, phone, password, avatarUrl FROM profile WHERE user_id = ?",
+                "SELECT firstName, lastName, email, password, avatarUrl FROM profile WHERE user_id = ?",
                 [currentUserId]
             );
             if (result) {
@@ -80,14 +78,13 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
                     firstName: meta?.first_name || defaultProfile.firstName,
                     lastName: meta?.last_name || defaultProfile.lastName,
                     email: user.email || defaultProfile.email,
-                    phone: meta?.phone || defaultProfile.phone,
                     password: defaultProfile.password,
                     avatarUrl: remoteAvatarUrl || undefined,
                 };
 
                 await db.runAsync(
-                    "INSERT OR REPLACE INTO profile (id, user_id, firstName, lastName, email, phone, password, avatarUrl) VALUES (1, ?, ?, ?, ?, ?, ?, ?)",
-                    [user.id, syncedProfile.firstName, syncedProfile.lastName, syncedProfile.email, syncedProfile.phone, syncedProfile.password || "", syncedProfile.avatarUrl || null]
+                    "INSERT OR REPLACE INTO profile (id, user_id, firstName, lastName, email, password, avatarUrl) VALUES (1, ?, ?, ?, ?, ?, ?)",
+                    [user.id, syncedProfile.firstName, syncedProfile.lastName, syncedProfile.email, syncedProfile.password || "", syncedProfile.avatarUrl || null]
                 );
                 setProfile(syncedProfile);
             }
@@ -110,12 +107,11 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
 
             // 1. Save locally
             await db.runAsync(
-                "UPDATE profile SET firstName = ?, lastName = ?, email = ?, phone = ?, password = ?, avatarUrl = ? WHERE user_id = ?",
+                "UPDATE profile SET firstName = ?, lastName = ?, email = ?, password = ?, avatarUrl = ? WHERE user_id = ?",
                 [
                     updatedProfile.firstName,
                     updatedProfile.lastName,
                     updatedProfile.email,
-                    updatedProfile.phone,
                     updatedProfile.password || "",
                     updatedProfile.avatarUrl || null,
                     currentUserId
@@ -128,7 +124,6 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
                 data: {
                     first_name: updatedProfile.firstName,
                     last_name: updatedProfile.lastName,
-                    phone: updatedProfile.phone,
                 }
             });
 

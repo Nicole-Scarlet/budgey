@@ -3,10 +3,16 @@ import { useRouter } from "expo-router";
 import * as React from "react";
 import { Pressable, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useProfile } from "../contexts/ProfileContext";
+import { useTransactions } from "../contexts/TransactionContext";
+import { useWishlist } from "../contexts/WishlistContext";
 
 export default function InterviewQuestion5() {
     const router = useRouter();
     const [selected, setSelected] = React.useState<string | null>(null);
+    const { syncProfile } = useProfile();
+    const { syncData } = useTransactions();
+    const { syncWishlist } = useWishlist();
 
     const options = [
         "Track automatically",
@@ -14,6 +20,16 @@ export default function InterviewQuestion5() {
         "Just remind me of bills",
         "Give me aggressive advice"
     ];
+
+    const handleFinish = async () => {
+        if (!selected) return;
+        // Sync profile & data from Supabase so the home screen shows
+        // the user's real name instead of the default "User"
+        await syncProfile();
+        await syncData();
+        await syncWishlist();
+        router.replace("/(tabs)" as any);
+    };
 
     return (
         <SafeAreaView className="flex-1 bg-[#1E293B] px-8 pt-6 pb-12">
@@ -66,7 +82,7 @@ export default function InterviewQuestion5() {
 
                 {/* Final Button */}
                 <Pressable
-                    onPress={() => selected && router.replace("/" as any)}
+                    onPress={handleFinish}
                     className={`h-14 px-8 rounded-full items-center justify-center border flex-row gap-x-2 ${selected ? 'bg-[#38BDF8] border-[#38BDF8] active:bg-[#0284C7]' : 'bg-slate-800 border-slate-700'}`}
                     disabled={!selected}
                 >

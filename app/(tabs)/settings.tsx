@@ -36,6 +36,65 @@ const SettingsPage = () => {
             ]
         );
     };
+    const handleDeleteAccount = async () => {
+        Alert.alert(
+            "Delete Account",
+            "Are you sure you want to permanently delete your account? All your data will be erased and your email will be freed for a new account. This cannot be undone.",
+            [
+                { text: "Cancel", style: "cancel" },
+                {
+                    text: "Delete",
+                    style: "destructive",
+                    onPress: () => {
+                        // Second confirmation
+                        Alert.alert(
+                            "Final Confirmation",
+                            "This is irreversible. Delete your account now?",
+                            [
+                                { text: "Cancel", style: "cancel" },
+                                {
+                                    text: "Delete Forever",
+                                    style: "destructive",
+                                    onPress: async () => {
+                                        try {
+                                            const { data: { user } } = await supabase.auth.getUser();
+                                            if (!user) return;
+
+                                            // 1. Delete all user data from Supabase tables
+                                            await supabase.from('transactions').delete().eq('user_id', user.id);
+                                            await supabase.from('categories').delete().eq('user_id', user.id);
+                                            await supabase.from('debt_payments').delete().eq('user_id', user.id);
+                                            await supabase.from('debts').delete().eq('user_id', user.id);
+                                            await supabase.from('settings').delete().eq('user_id', user.id);
+                                            await supabase.from('wishlist').delete().eq('user_id', user.id);
+                                            await supabase.from('profile').delete().eq('user_id', user.id);
+
+                                            // 2. Delete the auth user via server-side RPC (frees the email)
+                                            const { error: rpcError } = await supabase.rpc('delete_own_account');
+                                            if (rpcError) {
+                                                console.error("RPC delete error:", rpcError.message);
+                                            }
+
+                                            // 3. Clear local state
+                                            await clearData();
+                                            clearWishlistState();
+
+                                            // 4. Sign out and go to intro
+                                            await supabase.auth.signOut();
+                                            router.replace("/intro");
+                                        } catch (error) {
+                                            console.error("Error deleting account:", error);
+                                            Alert.alert("Error", "Failed to delete account. Please try again.");
+                                        }
+                                    }
+                                }
+                            ]
+                        );
+                    }
+                }
+            ]
+        );
+    };
 
     return (
         <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
@@ -109,13 +168,24 @@ const SettingsPage = () => {
                     </View>
 
                     {/* Logout Button */}
-                    <View className="mt-8 mb-4 items-center">
+                    <View className="mt-8 mb-2 items-center">
                         <Pressable 
                             onPress={handleLogout}
                             style={{ backgroundColor: colors.background, borderColor: colors.border + '4D' }}
                             className="w-full py-4 rounded-[25px] items-center justify-center border active:opacity-80"
                         >
                             <Text className="text-red-500 text-xl font-black">Logout</Text>
+                        </Pressable>
+                    </View>
+
+                    {/* Delete Account Button */}
+                    <View className="mb-4 items-center">
+                        <Pressable 
+                            onPress={handleDeleteAccount}
+                            className="w-full py-4 rounded-[25px] items-center justify-center active:opacity-80"
+                            style={{ backgroundColor: '#ef44441A', borderColor: '#ef444433', borderWidth: 1 }}
+                        >
+                            <Text className="text-red-500 text-lg font-bold">Delete Account</Text>
                         </Pressable>
                     </View>
                 </View>
