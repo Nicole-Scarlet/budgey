@@ -2,8 +2,8 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
-import React, { useRef, useState } from 'react';
-import { Dimensions, Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Dimensions, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../contexts/ThemeContext';
 
@@ -14,6 +14,8 @@ export default function ActionScreen() {
     const router = useRouter();
     const [permission, requestPermission] = useCameraPermissions();
     const [flash, setFlash] = useState<'on' | 'off'>('off');
+    const [isCapturing, setIsCapturing] = useState(false);
+    const [capturedImages, setCapturedImages] = useState<string[]>([]);
     const cameraRef = useRef<CameraView>(null);
     const { colors } = useTheme();
 
@@ -40,41 +42,19 @@ export default function ActionScreen() {
     };
 
     const takePicture = async () => {
-        console.log("Shutter button pressed. cameraRef exists:", !!cameraRef.current);
-        if (!cameraRef.current) {
-            router.push('/scanned-expense');
-            return;
-        }
-
-        try {
-            console.log("Attempting to take picture with optimized settings...");
-
-            // Race the camera capture against a 3-second timeout
-            const capturePromise = cameraRef.current.takePictureAsync({
-                base64: false,
-                quality: 0.1, // Lowest quality for fastest capture
-                skipProcessing: true, // Skip Android post-processing 
-                exif: false // Do not read EXIF data
-            });
-            const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error("Camera capture timed out")), 3000)
-            );
-
-            const photo = await Promise.race([capturePromise, timeoutPromise]) as any;
-
-            console.log("Picture taken successfully:", photo ? photo.uri : "No URI");
-            if (photo && photo.uri) {
-                router.push({
-                    pathname: '/scanned-expense',
-                    params: { imageUri: photo.uri }
+        if (cameraRef.current) {
+            try {
+                const photo = await cameraRef.current.takePictureAsync({
+                    quality: 1,
+                    base64: true,
                 });
-            } else {
-                router.push('/scanned-expense');
+                if (photo) {
+                    setCapturedImages(prev => [...prev, photo.uri]);
+                    console.log("Photo Taken" + (capturedImages.length + 1));
+                }
+            } catch (error) {
+                console.error("Camera Capture Error:", error);
             }
-        } catch (error: any) {
-            console.log("Failed or timed out taking picture:", error.message);
-            // Fallback to prototype flow if camera fails or hangs
-            router.push('/scanned-expense');
         }
     };
 
@@ -88,10 +68,8 @@ export default function ActionScreen() {
         });
 
         if (!result.canceled && result.assets && result.assets.length > 0) {
-            router.push({
-                pathname: '/scanned-expense',
-                params: { imageUri: result.assets[0].uri }
-            });
+            const newUris = result.assets.map(asset => asset.uri);
+            setCapturedImages(prev => [...prev, ...newUris]);
         }
     };
 
@@ -104,29 +82,8 @@ export default function ActionScreen() {
                 enableTorch={flash === 'on'}
             />
 
-            {/* Dark Overlay with cutout for the scanning area */}
+            {/* Transparent Overlay */}
             <View style={StyleSheet.absoluteFillObject} className="items-center justify-center pointer-events-none">
-                <View className="absolute top-0 w-full h-full bg-[#1E293B]/70" />
-                <View
-                    style={{
-                        width: SCAN_FRAME_SIZE,
-                        height: SCAN_FRAME_SIZE,
-                    }}
-                    className="bg-transparent border border-white/20 relative"
-                >
-                    {/* Corner Markers */}
-                    <View className="absolute top-0 left-0 w-10 h-10 border-t-4 border-l-4 border-[#3B82F6]" />
-                    <View className="absolute top-0 right-0 w-10 h-10 border-t-4 border-r-4 border-[#3B82F6]" />
-                    <View className="absolute bottom-0 left-0 w-10 h-10 border-b-4 border-l-4 border-[#3B82F6]" />
-                    <View className="absolute bottom-0 right-0 w-10 h-10 border-b-4 border-r-4 border-[#3B82F6]" />
-
-                    {/* Placeholder Text inside scanner */}
-                    <View className="flex-1 items-center justify-center">
-                        <Text className="text-white/70 text-center px-4 font-medium bg-black/30 py-1 rounded-full">
-                            Align your receipt within the frame
-                        </Text>
-                    </View>
-                </View>
             </View>
 
             {/* Header overlay */}
@@ -139,29 +96,66 @@ export default function ActionScreen() {
             </View>
 
             {/* Bottom Controls */}
-            <View className="absolute bottom-20 w-full px-10 flex-row justify-between items-center">
-                {/* Upload from Gallery bg-[#1E293B]/80 */}
-                <Pressable onPress={pickImage} className="items-center w-20">
-                    <View className="bg-white/10 p-3 rounded-full border border-white/20">
-                        <MaterialCommunityIcons name="image" size={26} color="white" />
+            <View className="absolute bottom-10 w-full px-6 items-center">
+                {/* Captured Photos Count Indicator */}
+                {capturedImages.length > 0 && (
+                    <View className="bg-white/20 px-4 py-1.5 rounded-full mb-6 border border-white/20 backdrop-blur-md">
+                        <Text className="text-white text-xs font-bold">{capturedImages.length} {capturedImages.length === 1 ? 'photo' : 'photos'} ready</Text>
                     </View>
-                    <Text className="text-white text-[10px] mt-2 font-medium">Upload</Text>
-                </Pressable>
+                )}
 
-                {/* Shutter Button */}
-                <Pressable onPress={takePicture} className="items-center justify-center">
-                    <View className="w-[84px] h-[84px] rounded-full border-[4px] border-white items-center justify-center bg-transparent">
-                        <View className="w-[68px] h-[68px] rounded-full bg-white active:bg-slate-300" />
-                    </View>
-                </Pressable>
+                <View className="flex-row justify-between items-center w-full px-4 mb-8">
+                    {/* Upload from Gallery bg-[#1E293B]/80 */}
+                    <Pressable onPress={pickImage} className="items-center w-20">
+                        <View className="bg-white/10 p-3 rounded-full border border-white/20">
+                            <MaterialCommunityIcons name="image" size={26} color="white" />
+                        </View>
+                        <Text className="text-white text-[10px] mt-2 font-medium">Upload</Text>
+                    </Pressable>
 
-                {/* Flash Toggle */}
-                <Pressable onPress={toggleFlash} className="items-center w-20">
-                    <View className={`p-3 rounded-full border border-white/20 ${flash === 'on' ? 'bg-[#3B82F6]' : 'bg-white/10'}`}>
-                        <MaterialCommunityIcons name={flash === 'on' ? "flash" : "flash-off"} size={26} color="white" />
+                    {/* Shutter Button */}
+                    <View 
+                        className="items-center justify-center"
+                    >
+                        <View className="w-[84px] h-[84px] rounded-full border-[4px] border-white items-center justify-center bg-transparent">
+                            <Pressable onPress={takePicture} className="w-[68px] h-[68px] rounded-full bg-white active:bg-slate-300" />
+                        </View>
                     </View>
-                    <Text className="text-white text-[10px] mt-2 font-medium">Flash</Text>
-                </Pressable>
+
+                    {/* Flash Toggle */}
+                    <Pressable onPress={toggleFlash} className="items-center w-20">
+                        <View className={`p-3 rounded-full border border-white/20 ${flash === 'on' ? 'bg-[#3B82F6]' : 'bg-white/10'}`}>
+                            <MaterialCommunityIcons name={flash === 'on' ? "flash" : "flash-off"} size={26} color="white" />
+                        </View>
+                        <Text className="text-white text-[10px] mt-2 font-medium">Flash</Text>
+                    </Pressable>
+                </View>
+
+                {/* Confirm and Clear Buttons */}
+                <View className="flex-row w-full gap-4">
+                    <Pressable 
+                        onPress={() => setCapturedImages([])}
+                        disabled={capturedImages.length === 0}
+                        className={`flex-1 py-4 rounded-2xl items-center justify-center border border-white/20 ${capturedImages.length === 0 ? 'opacity-30' : 'bg-white/10 active:bg-white/20'}`}
+                    >
+                        <Text className="text-white font-bold text-sm">CLEAR ALL</Text>
+                    </Pressable>
+
+                    <Pressable 
+                        onPress={() => {
+                            if (capturedImages.length > 0) {
+                                router.push({
+                                    pathname: '/scanned-expense',
+                                    params: { imageUris: JSON.stringify(capturedImages) }
+                                });
+                            }
+                        }}
+                        disabled={capturedImages.length === 0 || isCapturing}
+                        className={`flex-1 py-4 rounded-2xl items-center justify-center ${capturedImages.length === 0 ? 'bg-slate-700 opacity-50' : 'bg-[#3B82F6] active:bg-[#2563EB]'}`}
+                    >
+                        <Text className="text-white font-bold text-sm">CONFIRM ({capturedImages.length})</Text>
+                    </Pressable>
+                </View>
             </View>
         </SafeAreaView>
     );

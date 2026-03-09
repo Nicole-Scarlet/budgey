@@ -1,6 +1,6 @@
 import { SQLiteDatabase } from 'expo-sqlite';
 
-const DATABASE_VERSION = 7;
+const DATABASE_VERSION = 8;
 
 export async function migrateDbIfNeeded(db: SQLiteDatabase) {
     try {
@@ -51,6 +51,7 @@ export async function migrateDbIfNeeded(db: SQLiteDatabase) {
                     date TEXT NOT NULL,
                     type TEXT NOT NULL,
                     categoryId TEXT,
+                    image TEXT,
                     FOREIGN KEY (categoryId) REFERENCES categories(id)
                 );
 
@@ -109,7 +110,7 @@ export async function migrateDbIfNeeded(db: SQLiteDatabase) {
                 INSERT OR IGNORE INTO profile (id, firstName, lastName, email, phone, password)
                 VALUES (1, 'Ryan Reimann', 'Layno', 'ryan.layno@example.com', '0917 123 4567', 'password123');
             `);
-            currentDbVersion = 7;
+            currentDbVersion = 8;
         }
 
         if (currentDbVersion < 2) {
@@ -191,8 +192,19 @@ export async function migrateDbIfNeeded(db: SQLiteDatabase) {
             currentDbVersion = 7;
         }
 
+        if (currentDbVersion === 7) {
+            // Migration to v8: Add image column to transactions
+            try {
+                await db.execAsync(`ALTER TABLE transactions ADD COLUMN image TEXT;`);
+            } catch (e) {
+                console.error("Error adding image to transactions:", e);
+            }
+            currentDbVersion = 8;
+        }
+
         await db.execAsync(`PRAGMA user_version = ${DATABASE_VERSION}`);
         console.log("Database migrated to version", DATABASE_VERSION);
+
 
     } catch (error) {
         console.error("Migration error:", error);

@@ -11,6 +11,7 @@ export interface Transaction {
     title: string;
     date: string;
     categoryId?: string;
+    image?: string;
 }
 
 export type GoalPeriod = 'Daily' | 'Weekly' | 'Monthly';
@@ -197,8 +198,8 @@ export const TransactionProvider: React.FC<TransactionProviderProps> = ({ childr
         const newTransaction: Transaction = { ...transactionData, id };
         
         await db.runAsync(
-            'INSERT INTO transactions (id, type, amount, title, date, categoryId) VALUES (?, ?, ?, ?, ?, ?)',
-            [id, newTransaction.type, newTransaction.amount, newTransaction.title, newTransaction.date, newTransaction.categoryId || null]
+            'INSERT INTO transactions (id, type, amount, title, date, categoryId, image) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [id, newTransaction.type, newTransaction.amount, newTransaction.title, newTransaction.date, newTransaction.categoryId || null, newTransaction.image || null]
         );
         
         setTransactions((prev) => [newTransaction, ...prev]);

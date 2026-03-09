@@ -1,18 +1,21 @@
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Modal, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Dimensions, Image, Modal, Pressable, ScrollView, Text, View } from 'react-native';
+const { width } = Dimensions.get('window');
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as FileSystem from 'expo-file-system/legacy';
 import { useTransactions } from '../contexts/TransactionContext';
 import { useTheme } from '../contexts/ThemeContext';
 
-const GEMINI_API_KEY = 'API KEY';
+const GEMINI_API_KEY = process.env.EXPO_PUBLIC_SCANNER_TOKEN || '';
 
 export default function ScannedExpenseScreen() {
     const router = useRouter();
-    const { imageUri } = useLocalSearchParams<{ imageUri: string }>();
+    const { imageUri, imageUris } = useLocalSearchParams<{ imageUri?: string, imageUris?: string }>();
     const [isAnalyzing, setIsAnalyzing] = useState(true);
     const [scannedItems, setScannedItems] = useState<any[]>([]);
+    const [base64Images, setBase64Images] = useState<string[]>([]);
     const { addTransaction, categories } = useTransactions();
     const { colors, isDark } = useTheme();
     const [isCategoryModalVisible, setIsCategoryModalVisible] = useState(false);
@@ -21,48 +24,50 @@ export default function ScannedExpenseScreen() {
     const expenseCategories = categories.filter(c => c.type.toLowerCase() === 'expense');
 
     useEffect(() => {
-        if (!imageUri) {
+        const uris: string[] = [];
+        if (imageUris) {
+            try { uris.push(...JSON.parse(imageUris)); } catch (e) { console.error(e); }
+        } else if (imageUri) {
+            uris.push(imageUri);
+        }
+
+        if (uris.length === 0) {
             setIsAnalyzing(false);
             return;
         }
 
         const analyzeImage = async () => {
             try {
-                const response = await fetch(imageUri);
-                const blob = await response.blob();
+                // Read all images as base64
+                const b64s = await Promise.all(uris.map(uri => 
+                    FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 })
+                ));
+                setBase64Images(b64s);
 
-                const base64Data = await new Promise<string>((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.onloadend = () => {
-                        const base64String = (reader.result as string).split(',')[1];
-                        resolve(base64String);
-                    };
-                    reader.onerror = reject;
-                    reader.readAsDataURL(blob);
-                });
-
-                const prompt = `You are an expert receipt analyzer. Extract all purchased items from this receipt image. 
-Return ONLY a valid JSON array of objects without any markdown formatting like \`\`\`json. Each object must have exactly these keys:
-- "name": The short name of the purchased item.
-- "amount": The exact price of the item as a pure number (do not include currency symbols, e.g. 180.00). Ensure it's a number type in JSON.`;
+                const prompt = `You are an expert receipt analyzer. I have provided ${uris.length} receipt image(s). 
+Carefully analyze ALL images and extract every single purchased item found across ALL files. 
+Return ONLY a valid JSON array of objects without any markdown formatting. 
+Each object must have exactly these keys: 
+- "name": Short name of the item.
+- "amount": Price as a pure number.`;
 
                 const payload = {
                     contents: [
                         {
                             parts: [
-                                { text: prompt },
-                                {
+                                ...b64s.map(b64 => ({
                                     inlineData: {
                                         mimeType: 'image/jpeg',
-                                        data: base64Data
+                                        data: b64
                                     }
-                                }
+                                })),
+                                { text: prompt }
                             ]
                         }
                     ]
                 };
 
-                const apiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+                const apiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -71,6 +76,8 @@ Return ONLY a valid JSON array of objects without any markdown formatting like \
                 });
 
                 if (!apiResponse.ok) {
+                    const errorText = await apiResponse.text();
+                    console.error("API Error status:", apiResponse.status, errorText);
                     throw new Error(`API Error: ${apiResponse.status}`);
                 }
 
@@ -106,7 +113,7 @@ Return ONLY a valid JSON array of objects without any markdown formatting like \
 
         analyzeImage();
 
-    }, [imageUri]);
+    }, [imageUri, imageUris]);
 
     const handleSaveAll = async () => {
         const missingCategories = scannedItems.some(item => !item.categoryId);
@@ -133,7 +140,8 @@ Return ONLY a valid JSON array of objects without any markdown formatting like \
                 amount: amountValue,
                 categoryId: item.categoryId || 'other',
                 type: 'expense',
-                date: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+                date: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+                image: base64Images[0] || undefined // Store the first image as a reference
             });
         }
 
@@ -158,21 +166,32 @@ Return ONLY a valid JSON array of objects without any markdown formatting like \
                 style={{ borderBottomColor: colors.border + '1A' }}
             >
                 {/* Captured Image Preview & Analyzing State */}
-                {imageUri ? (
+                {base64Images.length > 0 ? (
                     <View 
                         style={{ borderColor: colors.border + '4D' }}
                         className="mb-6 rounded-[25px] overflow-hidden border items-center justify-center bg-black h-48 relative"
                     >
-                        <Image
-                            source={{ uri: imageUri }}
-                            style={{ width: '100%', height: '100%', resizeMode: 'cover', opacity: isAnalyzing ? 0.4 : 1 }}
-                        />
+                        <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false}>
+                            {base64Images.map((b64, idx) => (
+                                <Image
+                                    key={idx}
+                                    source={{ uri: `data:image/jpeg;base64,${b64}` }}
+                                    style={{ width: width - 48, height: '100%', resizeMode: 'cover', opacity: isAnalyzing ? 0.4 : 1 }}
+                                />
+                            ))}
+                        </ScrollView>
 
                         {isAnalyzing && (
                             <View className="absolute items-center justify-center">
                                 <ActivityIndicator size="large" color="#3B82F6" />
-                                <Text className="text-[#38BDF8] font-bold mt-4 text-center">AI Analyzing Receipt...</Text>
-                                <Text className="text-white/70 text-xs mt-1">Extracting text and amounts</Text>
+                                <Text className="text-[#38BDF8] font-bold mt-4 text-center">AI Analyzing {base64Images.length > 1 ? 'Receipts' : 'Receipt'}...</Text>
+                                <Text className="text-white/70 text-xs mt-1">Combining multi-photo data</Text>
+                            </View>
+                        )}
+                        
+                        {!isAnalyzing && base64Images.length > 1 && (
+                            <View className="absolute bottom-2 bg-black/50 px-3 py-1 rounded-full">
+                                <Text className="text-white text-[10px] font-bold">{base64Images.length} photos (swipe left/right)</Text>
                             </View>
                         )}
                     </View>
