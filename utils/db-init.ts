@@ -1,6 +1,6 @@
 import { SQLiteDatabase } from 'expo-sqlite';
 
-const DATABASE_VERSION = 12;
+const DATABASE_VERSION = 13;
 
 export async function migrateDbIfNeeded(db: SQLiteDatabase) {
     try {
@@ -199,6 +199,17 @@ export async function migrateDbIfNeeded(db: SQLiteDatabase) {
                 console.log("avatarUrl column may already exist in profile.");
             }
             currentDbVersion = 12;
+        }
+
+        if (currentDbVersion < 13) {
+            // Migration to v13: Add image column to transactions for older databases
+            console.log("Migrating to v13: Adding image column to transactions...");
+            try {
+                await db.execAsync(`ALTER TABLE transactions ADD COLUMN image TEXT;`);
+            } catch (e) {
+                console.log("image column may already exist in transactions.");
+            }
+            currentDbVersion = 13;
         }
 
         await db.execAsync(`PRAGMA user_version = ${DATABASE_VERSION}`);

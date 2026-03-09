@@ -58,10 +58,23 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
             if (user) {
                 const meta = user.user_metadata;
 
-                // Load the locally stored avatar (we never put it in Supabase metadata)
-                const localRow = await db.getFirstAsync<{ avatarUrl: string | null }>(
-                    "SELECT avatarUrl FROM profile WHERE user_id = ?", [user.id]
-                );
+                // Pull avatar from Supabase profile table (plain TEXT column).
+                // Fall back to local SQLite if Supabase has nothing yet.
+                let remoteAvatarUrl: string | null = null;
+                const { data: remoteProfile } = await supabase
+                    .from('profile')
+                    .select('avatarUrl')
+                    .eq('user_id', user.id)
+                    .maybeSingle();
+                if (remoteProfile?.avatarUrl) {
+                    remoteAvatarUrl = remoteProfile.avatarUrl;
+                } else {
+                    // Fallback: use whatever is already in local SQLite
+                    const localRow = await db.getFirstAsync<{ avatarUrl: string | null }>(
+                        "SELECT avatarUrl FROM profile WHERE user_id = ?", [user.id]
+                    );
+                    remoteAvatarUrl = localRow?.avatarUrl || null;
+                }
 
                 const syncedProfile: ProfileData = {
                     firstName: meta?.first_name || defaultProfile.firstName,
@@ -69,7 +82,7 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
                     email: user.email || defaultProfile.email,
                     phone: meta?.phone || defaultProfile.phone,
                     password: defaultProfile.password,
-                    avatarUrl: localRow?.avatarUrl || undefined,
+                    avatarUrl: remoteAvatarUrl || undefined,
                 };
 
                 await db.runAsync(
@@ -131,12 +144,21 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
             const { data: { user } } = await supabase.auth.getUser();
             const currentUserId = user?.id || 'local';
 
-            // Save ONLY locally — base64 images are too large for Supabase user_metadata (64KB limit).
-            // SQLite is already filtered by user_id so avatars are still per-account.
+            // 1. Save locally
             await db.runAsync(
                 "UPDATE profile SET avatarUrl = ? WHERE user_id = ?",
                 [base64Uri || null, currentUserId]
             );
+
+            // 2. Push to Supabase profile table as plain TEXT (not user_metadata which has a 64KB limit).
+            //    We upsert so that even if the row doesn't exist yet it gets created.
+            if (user) {
+                const { error } = await supabase.from('profile').upsert(
+                    { user_id: user.id, avatarUrl: base64Uri || null },
+                    { onConflict: 'user_id' }
+                );
+                if (error) console.log("Offline: Avatar saved locally only.", error.message);
+            }
 
             setProfile(prev => ({ ...prev, avatarUrl: base64Uri || undefined }));
         } catch (error) {

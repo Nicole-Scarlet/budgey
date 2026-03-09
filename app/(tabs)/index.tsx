@@ -60,18 +60,24 @@ const HomePage = () => {
 
         <View className="px-8 pt-8 flex-row justify-between items-center">
           <View>
-            <Text className="text-5xl font-bold" style={{ color: colors.foreground }}>Today</Text>
+            <Text className="text-5xl font-bold" style={{ color: colors.foreground }}>Hi, {profile.firstName}</Text>
           </View>
           <View className="flex-row items-center gap-x-4">
-            <View className="flex-row items-center bg-[#334155] px-3 py-1.5 rounded-full border border-[#90A1B9]">
-              <Ionicons name="flash" size={20} color="#EAB308" />
-              <Text className="text-white font-bold ml-1">67</Text>
-            </View>
             <Pressable 
               onPress={() => router.push('/wishlist' as any)}
-              className="bg-[#334155] p-2 rounded-full border border-[#90A1B9]"
+              className="p-2 rounded-full border"
+              style={{ backgroundColor: colors.card, borderColor: colors.border }}
             >
-              <Ionicons name="heart-outline" size={24} color="white" />
+              <Ionicons name="heart-outline" size={24} color={colors.foreground} />
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                // TODO: Open multi-user menu
+              }}
+              className="p-2 rounded-full border"
+              style={{ backgroundColor: colors.card, borderColor: colors.border }}
+            >
+              <Ionicons name="menu" size={24} color={colors.foreground} />
             </Pressable>
           </View>
         </View>
