@@ -28,7 +28,7 @@ export default function AddDebtScreen() {
   const passedCategoryId = params.category as string;
   const categoryName = params.categoryName as string;
   const activeModule = (params.module as string) || "Debt";
-  const { addDebt, categories, debts } = useTransactions();
+  const { addDebt, categories, debts, activeGroupId } = useTransactions();
   const { colors, isDark } = useTheme();
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [debtType, setDebtType] = useState<"owes_me" | "i_owe">("owes_me");
@@ -51,7 +51,7 @@ export default function AddDebtScreen() {
   const categoryLimit = categories.find(c => c.id === resolvedViewCategoryId)?.limit || 0;
   const amountValue = parseFloat(amount.replace(/[^0-9.-]+/g, "")) || 0;
   const spentInValue = debts
-    .filter((d) => d.categoryId === resolvedViewCategoryId)
+    .filter((d) => d.categoryId === resolvedViewCategoryId && (activeGroupId ? d.groupId === activeGroupId : !d.groupId))
     .reduce((sum, d) => sum + d.initialAmount, 0);
 
   const isLimitExceeded = categoryLimit > 0 && (spentInValue + amountValue) > categoryLimit;
@@ -73,6 +73,7 @@ export default function AddDebtScreen() {
         initialAmount: parseFloat(amount) || 0,
         direction: direction as "left" | "right",
         categoryId: resolvedCategoryId,
+        groupId: activeGroupId || undefined
       });
       router.back();
     } finally {

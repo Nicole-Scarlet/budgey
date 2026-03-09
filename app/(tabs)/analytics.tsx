@@ -162,10 +162,13 @@ function StackedBarCard({
 // ─── Main Screen ──────────────────────────────────────
 export default function AnalyticsScreen() {
   const router = useRouter();
-  const { transactions, categories } = useTransactions();
+  const { transactions, categories, activeGroupId } = useTransactions();
   const { colors, isDark } = useTheme();
 
   const chartData = useMemo(() => {
+    // Filter transactions by active group
+    const scopedTransactions = transactions.filter(t => (activeGroupId ? t.groupId === activeGroupId : !t.groupId));
+
     // 1. Get last 7 days
     const days = [];
     const now = new Date();
@@ -185,7 +188,7 @@ export default function AnalyticsScreen() {
     const dateRangeStr = `${dateStrings[0].split(',')[0]} - ${dateStrings[6].split(',')[0]}`;
 
     // 2. Filter transactions for these days
-    const last7DaysTxs = transactions.filter(t => {
+    const last7DaysTxs = scopedTransactions.filter(t => {
       try {
         // Robust matching: compare exact date strings
         return dateStrings.some(ds => ds === t.date);

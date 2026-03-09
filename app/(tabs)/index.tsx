@@ -33,11 +33,17 @@ const HomePage = () => {
     subtractInvestmentFromBudget,
     setSubtractInvestmentFromBudget,
     subtractDebtFromBudget,
-    setSubtractDebtFromBudget
+    setSubtractDebtFromBudget,
+    activeGroupId,
+    groups,
   } = useTransactions();
   const { profile } = useProfile();
   const { colors, isDark } = useTheme();
   const { bottom } = useSafeAreaInsets();
+
+  const activeGroup = groups.find(g => g.id === activeGroupId);
+  const displayBudget = activeGroup ? activeGroup.budgetLimit : budget;
+  const displayPeriod = (activeGroup ? activeGroup.budgetPeriod : budgetPeriod) as GoalPeriod;
 
   const [isBudgetModalVisible, setIsBudgetModalVisible] = React.useState(false);
   const [tempBudget, setTempBudget] = React.useState('');
@@ -97,15 +103,17 @@ const HomePage = () => {
               }}
             >
               <View className="flex-row items-center justify-between">
-                <Text className="text-lg font-medium" style={{ color: colors.muted }}>Overall Budget</Text>
+                <Text className="text-lg font-medium" style={{ color: colors.muted }}>
+                  {activeGroup ? `${activeGroup.name} Budget` : 'Overall Budget'}
+                </Text>
               </View>
               <Text className="text-5xl font-bold mt-2" style={{ color: colors.foreground }}>
-                ₱{(budget + getTotalBalance()).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                ₱{(displayBudget + getTotalBalance()).toLocaleString('en-US', { minimumFractionDigits: 2 })}
               </Text>
 
-              {budget > 0 && (
+              {displayBudget > 0 && (
                 <Text className="text-[#4ADE80] font-medium text-sm mt-3">
-                  Limit: ₱{budget.toLocaleString('en-US', { minimumFractionDigits: 2 })} / {budgetPeriod}
+                  Limit: ₱{displayBudget.toLocaleString('en-US', { minimumFractionDigits: 2 })} / {displayPeriod}
                 </Text>
               )}
             </Pressable>

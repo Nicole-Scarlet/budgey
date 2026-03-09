@@ -37,7 +37,7 @@ export default function AddExpenseScreen() {
     };
     const moduleColor = getModuleColor(activeModule);
 
-    const { addTransaction, categories, transactions } = useTransactions();
+    const { addTransaction, categories, transactions, activeGroupId } = useTransactions();
 
     const [itemName, setItemName] = useState('');
     const [amount, setAmount] = useState('');
@@ -60,7 +60,7 @@ export default function AddExpenseScreen() {
 
     const amountValue = parseFloat(amount.replace(/[^0-9.-]+/g, '')) || 0;
     const spentInValue = transactions
-        .filter(t => t.categoryId === resolvedCategoryId)
+        .filter(t => t.categoryId === resolvedCategoryId && (activeGroupId ? t.groupId === activeGroupId : !t.groupId))
         .reduce((sum, t) => sum + t.amount, 0);
 
     const isLimitExceeded = categoryLimit > 0 && (spentInValue + amountValue) > categoryLimit;
@@ -264,7 +264,8 @@ export default function AddExpenseScreen() {
                                                 amount: amountValue || 0,
                                                 categoryId: resolvedCategoryId as string,
                                                 type: activeModule.toLowerCase() as any,
-                                                date: formatDate(date)
+                                                date: formatDate(date),
+                                                groupId: activeGroupId || undefined
                                             });
                                             router.back();
                                         } finally {

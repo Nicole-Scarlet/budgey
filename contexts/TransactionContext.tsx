@@ -13,6 +13,27 @@ export interface Transaction {
     date: string;
     categoryId?: string;
     image?: string;
+    groupId?: string; // Added for groups
+}
+
+export interface Group {
+    id: string;
+    name: string;
+    description: string;
+    inviteCode: string;
+    budgetLimit: number;
+    budgetPeriod: GoalPeriod;
+    createdBy: string;
+}
+
+export interface GroupMember {
+    groupId: string;
+    userId: string;
+    role: 'owner' | 'admin' | 'member';
+    shareIncome: boolean;
+    shareSavings: boolean;
+    shareInvestments: boolean;
+    shareDebts: boolean;
 }
 
 export type GoalPeriod = 'Daily' | 'Weekly' | 'Monthly';
@@ -46,6 +67,7 @@ export interface Debt {
     status: 'pending' | 'paid';
     payments: DebtPayment[];
     categoryId?: string;
+    groupId?: string; // Added for groups
 }
 
 // Define what our context will provide
@@ -99,6 +121,16 @@ interface TransactionContextData {
     deleteDebt: (id: string) => Promise<void>;
     syncData: () => Promise<void>;
     clearData: () => Promise<void>;
+
+    // Group System
+    groups: Group[];
+    activeGroupId: string | null;
+    setActiveGroupId: (id: string | null) => void;
+    groupMembers: GroupMember[];
+    createGroup: (name: string, description: string) => Promise<void>;
+    joinGroup: (inviteCode: string) => Promise<void>;
+    updateGroupMemberSharing: (groupId: string, sharing: Partial<Omit<GroupMember, 'groupId' | 'userId' | 'role'>>) => Promise<void>;
+    leaveGroup: (groupId: string) => Promise<void>;
 }
 
 // Create the context with a default undefined value
@@ -133,6 +165,13 @@ export const TransactionProvider: React.FC<TransactionProviderProps> = ({ childr
     const [subtractInvestmentFromBudget, setSubtractInvestmentFromBudget] = useState<boolean>(true);
     const [subtractDebtFromBudget, setSubtractDebtFromBudget] = useState<boolean>(true);
 
+    // Group System State
+    const [groups, setGroups] = useState<Group[]>([]);
+    const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
+    const [groupMembers, setGroupMembers] = useState<GroupMember[]>([]);
+
+
+
     // Normalizes any date string (ISO or locale) to 'March 9, 2026' format
     const normalizeDate = (dateStr: string): string => {
         if (!dateStr) return dateStr;
@@ -157,13 +196,52 @@ export const TransactionProvider: React.FC<TransactionProviderProps> = ({ childr
             const { data: { user } } = await supabase.auth.getUser();
             const currentUserId = user?.id || 'local';
 
-            // Load transactions
-            const rawTxs = await db.getAllAsync<Transaction>(
-                'SELECT * FROM transactions WHERE user_id = ? ORDER BY rowid DESC', 
-                [currentUserId]
-            );
-            // Normalize dates in case some were stored in ISO format from Supabase sync
-            const txs = rawTxs.map(t => ({ ...t, date: normalizeDate(t.date) }));
+            // 1. Load Groups (First, so we can use for transactions)
+            const localGroupsRaw = await db.getAllAsync<any>('SELECT * FROM groups');
+            const mappedGroups = localGroupsRaw.map(g => ({
+                id: g.id,
+                name: g.name,
+                description: g.description,
+                inviteCode: g.invite_code,
+                budgetLimit: g.budget_limit || 0,
+                budgetPeriod: (g.budget_period || 'Monthly') as GoalPeriod,
+                createdBy: g.created_by
+            }));
+            setGroups(mappedGroups);
+
+            const localMembersRaw = await db.getAllAsync<any>('SELECT * FROM group_members');
+            const mappedMembers = localMembersRaw.map(m => ({
+                groupId: m.group_id,
+                userId: m.user_id,
+                role: m.role as any,
+                shareIncome: m.share_income === 1,
+                shareSavings: m.share_savings === 1,
+                shareInvestments: m.share_investments === 1,
+                shareDebts: m.share_debts === 1
+            }));
+            setGroupMembers(mappedMembers);
+
+            // 2. Load transactions (Mine + Group shared)
+            const joinedGroupIds = mappedGroups.map(g => g.id);
+            let rawTxs: any[] = [];
+            
+            if (user) {
+                const placeholders = joinedGroupIds.map(() => '?').join(',');
+                const query = joinedGroupIds.length > 0 
+                  ? `SELECT * FROM transactions WHERE user_id = ? OR group_id IN (${placeholders}) ORDER BY rowid DESC`
+                  : `SELECT * FROM transactions WHERE user_id = ? ORDER BY rowid DESC`;
+                const params = joinedGroupIds.length > 0 ? [currentUserId, ...joinedGroupIds] : [currentUserId];
+                rawTxs = await db.getAllAsync<any>(query, params);
+            } else {
+                rawTxs = await db.getAllAsync<any>('SELECT * FROM transactions WHERE user_id = ? ORDER BY rowid DESC', [currentUserId]);
+            }
+            
+            const txs = rawTxs.map(t => ({ 
+                ...t, 
+                date: normalizeDate(t.date),
+                groupId: t.group_id,
+                userId: t.user_id 
+            }));
             setTransactions(txs);
 
             // Load categories
@@ -245,15 +323,20 @@ export const TransactionProvider: React.FC<TransactionProviderProps> = ({ childr
                 }
             }
             
-            // 2. Sync Transactions
-            const { data: remoteTxs } = await supabase.from('transactions').select('*').eq('user_id', user.id);
-            if (remoteTxs) {
-                for (const tx of remoteTxs) {
-                    // Normalize date from Supabase (may be ISO '2026-03-09') to locale format 'March 9, 2026'
+            // 2. Sync Transactions (Mine + Groups)
+            // Fetch personal transactions
+            const { data: personalTxs } = await supabase.from('transactions').select('*').eq('user_id', user.id).is('group_id', null);
+            // Fetch group transactions (RLS handles shared visibility)
+            const { data: groupTxs } = await supabase.from('transactions').select('*').not('group_id', 'is', null);
+            
+            const allRemoteTxs = [...(personalTxs || []), ...(groupTxs || [])];
+            
+            if (allRemoteTxs.length > 0) {
+                for (const tx of allRemoteTxs) {
                     const normalizedDate = normalizeDate(tx.date);
                     await db.runAsync(
-                        'INSERT OR REPLACE INTO transactions (id, user_id, type, amount, title, date, categoryId, image) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-                        [tx.id, user.id, tx.type, tx.amount, tx.title, normalizedDate, tx.categoryId, tx.image]
+                        'INSERT OR REPLACE INTO transactions (id, user_id, type, amount, title, date, categoryId, image, group_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                        [tx.id, tx.user_id, tx.type, tx.amount, tx.title, normalizedDate, tx.categoryId, tx.image, tx.group_id]
                     );
                 }
             }
@@ -357,11 +440,12 @@ export const TransactionProvider: React.FC<TransactionProviderProps> = ({ childr
         const newTransaction: Transaction = { ...transactionData, id };
         
         const { data: { user } } = await supabase.auth.getUser();
+        const currentUserId = user?.id || 'local';
         
         // 1. Save locally (Instant UI update)
         await db.runAsync(
-            'INSERT INTO transactions (id, user_id, type, amount, title, date, categoryId, image) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-            [id, user?.id || 'local', newTransaction.type, newTransaction.amount, newTransaction.title, newTransaction.date, newTransaction.categoryId || null, newTransaction.image || null]
+            'INSERT INTO transactions (id, user_id, type, amount, title, date, categoryId, image, group_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [id, currentUserId, newTransaction.type, newTransaction.amount, newTransaction.title, newTransaction.date, newTransaction.categoryId || null, newTransaction.image || null, newTransaction.groupId || null]
         );
         setTransactions((prev) => [newTransaction, ...prev]);
 
@@ -375,7 +459,8 @@ export const TransactionProvider: React.FC<TransactionProviderProps> = ({ childr
                 title: newTransaction.title,
                 date: newTransaction.date,
                 categoryId: newTransaction.categoryId || null,
-                image: newTransaction.image || null
+                image: newTransaction.image || null,
+                group_id: newTransaction.groupId || null
             }]);
         }
     };
@@ -457,11 +542,12 @@ export const TransactionProvider: React.FC<TransactionProviderProps> = ({ childr
         };
 
         const { data: { user } } = await supabase.auth.getUser();
+        const currentUserId = user?.id || 'local';
 
         // 1. Save locally
         await db.runAsync(
-            'INSERT INTO debts (id, user_id, person, description, date, initialAmount, remainingAmount, direction, status, categoryId) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            [id, user?.id || 'local', newDebt.person, newDebt.description, newDebt.date, newDebt.initialAmount, newDebt.remainingAmount, newDebt.direction, newDebt.status, newDebt.categoryId || null]
+            'INSERT INTO debts (id, user_id, person, description, date, initialAmount, remainingAmount, direction, status, categoryId, group_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [id, currentUserId, newDebt.person, newDebt.description, newDebt.date, newDebt.initialAmount, newDebt.remainingAmount, newDebt.direction, newDebt.status, newDebt.categoryId || null, newDebt.groupId || null]
         );
         setDebts((prev) => [...prev, newDebt]);
 
@@ -477,7 +563,8 @@ export const TransactionProvider: React.FC<TransactionProviderProps> = ({ childr
                 remainingAmount: newDebt.remainingAmount,
                 direction: newDebt.direction,
                 status: newDebt.status,
-                categoryId: newDebt.categoryId || null
+                categoryId: newDebt.categoryId || null,
+                group_id: newDebt.groupId || null
             }]);
         }
     };
@@ -556,16 +643,31 @@ export const TransactionProvider: React.FC<TransactionProviderProps> = ({ childr
     };
 
     const getTransactionsByType = (type: TransactionType) => {
-        return transactions.filter(t => t.type === type);
+        return transactions.filter(t => {
+            const isMatch = t.type === type;
+            if (!isMatch) return false;
+
+            if (activeGroupId) {
+                // If a group is active, show only that group's transactions
+                return t.groupId === activeGroupId;
+            } else {
+                // Personal: show transactions with no groupId
+                return !t.groupId;
+            }
+        });
     };
 
     const getTotalByType = (type: TransactionType) => {
-        return transactions
-            .filter(t => t.type === type)
-            .reduce((total, t) => total + t.amount, 0);
+        return getTransactionsByType(type).reduce((total, t) => total + t.amount, 0);
     };
 
     const getTotalBalance = () => {
+        if (activeGroupId) {
+            // For groups, we show balance based on group expenses
+            const groupExpenses = getTotalByType('expense');
+            return -groupExpenses;
+        }
+
         const totalExpense = getTotalByType('expense');
         const totalSavings = getTotalByType('savings');
         const totalDebtTxs = getTotalByType('debt');
@@ -577,6 +679,125 @@ export const TransactionProvider: React.FC<TransactionProviderProps> = ({ childr
         if (subtractInvestmentFromBudget) balance -= totalInvestment;
 
         return balance;
+    };
+
+    // Group-related functions
+    const createGroup = async (name: string, description: string) => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("Must be logged in to create a group");
+
+        const id = Date.now().toString() + Math.random().toString(36).substring(7);
+        const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+
+        const groupData = {
+            id,
+            name,
+            description,
+            invite_code: inviteCode,
+            created_by: user.id,
+            budget_limit: 0,
+            budget_period: 'Monthly'
+        };
+
+        // 1. Save locally
+        await db.runAsync(
+            'INSERT INTO groups (id, name, description, invite_code, budget_limit, budget_period, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [id, name, description, inviteCode, 0, 'Monthly', user.id]
+        );
+        await db.runAsync(
+            'INSERT INTO group_members (group_id, user_id, role) VALUES (?, ?, ?)',
+            [id, user.id, 'owner']
+        );
+
+        // 2. Sync to Supabase
+        await supabase.from('groups').insert([groupData]);
+        await supabase.from('group_members').insert([{
+            group_id: id,
+            role: 'owner',
+            user_id: user.id
+        }]);
+
+        await loadData();
+    };
+
+    const joinGroup = async (inviteCode: string) => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("Must be logged in to join a group");
+
+        // Find group by invite code
+        const { data: group, error } = await supabase
+            .from('groups')
+            .select('*')
+            .eq('invite_code', inviteCode)
+            .single();
+
+        if (error || !group) throw new Error("Group not found");
+
+        const memberData = {
+            group_id: group.id,
+            user_id: user.id,
+            role: 'member'
+        };
+
+        // 1. Save locally
+        await db.runAsync(
+            'INSERT OR REPLACE INTO groups (id, name, description, invite_code, budget_limit, budget_period, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [group.id, group.name, group.description, group.invite_code, group.budget_limit, group.budget_period, group.created_by]
+        );
+        await db.runAsync(
+            'INSERT OR REPLACE INTO group_members (group_id, user_id, role) VALUES (?, ?, ?)',
+            [group.id, user.id, 'member']
+        );
+
+        // 2. Sync to Supabase
+        await supabase.from('group_members').insert([memberData]);
+
+        await loadData();
+    };
+
+    const updateGroupMemberSharing = async (groupId: string, sharing: Partial<Omit<GroupMember, 'groupId' | 'userId' | 'role'>>) => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const updates: any = {};
+        if (sharing.shareIncome !== undefined) updates.share_income = sharing.shareIncome ? 1 : 0;
+        if (sharing.shareSavings !== undefined) updates.share_savings = sharing.shareSavings ? 1 : 0;
+        if (sharing.shareInvestments !== undefined) updates.share_investments = sharing.shareInvestments ? 1 : 0;
+        if (sharing.shareDebts !== undefined) updates.share_debts = sharing.shareDebts ? 1 : 0;
+
+        const keys = Object.keys(updates);
+        if (keys.length === 0) return;
+
+        // Local
+        const setClause = keys.map(k => `${k} = ?`).join(', ');
+        await db.runAsync(
+            `UPDATE group_members SET ${setClause} WHERE group_id = ? AND user_id = ?`,
+            [...Object.values(updates), groupId, user.id] as any[]
+        );
+
+        // Supabase
+        const supabaseUpdates = Object.fromEntries(
+            Object.entries(updates).map(([k, v]) => [k, v === 1])
+        );
+        await supabase.from('group_members')
+            .update(supabaseUpdates)
+            .eq('group_id', groupId)
+            .eq('user_id', user.id);
+
+        await loadData();
+    };
+
+    const leaveGroup = async (groupId: string) => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        await db.runAsync('DELETE FROM group_members WHERE group_id = ? AND user_id = ?', [groupId, user.id]);
+        await db.runAsync('DELETE FROM groups WHERE id = ?', [groupId]); // Usually we only delete the local copy
+
+        await supabase.from('group_members').delete().eq('group_id', groupId).eq('user_id', user.id);
+
+        if (activeGroupId === groupId) setActiveGroupId(null);
+        await loadData();
     };
 
     // Setting wrappers
@@ -647,7 +868,17 @@ export const TransactionProvider: React.FC<TransactionProviderProps> = ({ childr
                 addPayment,
                 deleteDebt,
                 syncData,
-                clearData
+                clearData,
+
+                // Group System
+                groups,
+                activeGroupId,
+                setActiveGroupId,
+                groupMembers,
+                createGroup,
+                joinGroup,
+                updateGroupMemberSharing,
+                leaveGroup
             }}
         >
             {children}

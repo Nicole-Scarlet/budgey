@@ -11,7 +11,7 @@ import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 
 export default function AddInvestmentScreen() {
     const router = useRouter();
-    const { addTransaction, categories } = useTransactions();
+    const { addTransaction, categories, activeGroupId } = useTransactions();
     const { colors, isDark } = useTheme();
     const [amount, setAmount] = useState('');
     const [itemName, setItemName] = useState('');
@@ -39,7 +39,8 @@ export default function AddInvestmentScreen() {
                     amount: amountValue,
                     categoryId: selectedCategoryId || 'uncategorized',
                     title: itemName.trim() || 'Investment',
-                    date: formatDate(date)
+                    date: formatDate(date),
+                    groupId: activeGroupId || undefined
                 });
                 router.back();
             } finally {

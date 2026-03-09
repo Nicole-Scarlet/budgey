@@ -1,6 +1,6 @@
 import { SQLiteDatabase } from 'expo-sqlite';
 
-const DATABASE_VERSION = 13;
+const DATABASE_VERSION = 14;
 
 export async function migrateDbIfNeeded(db: SQLiteDatabase) {
     try {
@@ -42,7 +42,8 @@ export async function migrateDbIfNeeded(db: SQLiteDatabase) {
                     limit_val REAL DEFAULT 0,
                     icon TEXT NOT NULL,
                     color TEXT NOT NULL,
-                    order_index REAL DEFAULT 0
+                    order_index REAL DEFAULT 0,
+                    group_id TEXT
                 );
 
                 CREATE TABLE IF NOT EXISTS transactions (
@@ -54,6 +55,7 @@ export async function migrateDbIfNeeded(db: SQLiteDatabase) {
                     type TEXT NOT NULL,
                     categoryId TEXT,
                     image TEXT,
+                    group_id TEXT,
                     FOREIGN KEY (categoryId) REFERENCES categories(id)
                 );
 
@@ -75,6 +77,7 @@ export async function migrateDbIfNeeded(db: SQLiteDatabase) {
                     direction TEXT NOT NULL,
                     status TEXT NOT NULL,
                     categoryId TEXT,
+                    group_id TEXT,
                     FOREIGN KEY (categoryId) REFERENCES categories(id)
                 );
 
@@ -87,15 +90,28 @@ export async function migrateDbIfNeeded(db: SQLiteDatabase) {
                     FOREIGN KEY (debtId) REFERENCES debts(id) ON DELETE CASCADE
                 );
 
-                CREATE TABLE IF NOT EXISTS profile (
-                    id INTEGER PRIMARY KEY DEFAULT 1,
-                    user_id TEXT,
-                    firstName TEXT,
-                    lastName TEXT,
-                    email TEXT,
-                    phone TEXT,
-                    password TEXT,
                     avatarUrl TEXT
+                );
+
+                CREATE TABLE IF NOT EXISTS groups (
+                    id TEXT PRIMARY KEY NOT NULL,
+                    name TEXT NOT NULL,
+                    description TEXT,
+                    invite_code TEXT UNIQUE NOT NULL,
+                    budget_limit REAL DEFAULT 0,
+                    budget_period TEXT DEFAULT 'Monthly',
+                    created_by TEXT
+                );
+
+                CREATE TABLE IF NOT EXISTS group_members (
+                    group_id TEXT NOT NULL,
+                    user_id TEXT NOT NULL,
+                    role TEXT DEFAULT 'member',
+                    share_income INTEGER DEFAULT 0,
+                    share_savings INTEGER DEFAULT 0,
+                    share_investments INTEGER DEFAULT 0,
+                    share_debts INTEGER DEFAULT 0,
+                    PRIMARY KEY (group_id, user_id)
                 );
 
                 -- Default settings (id is local-only here, will be synced)
@@ -200,7 +216,6 @@ export async function migrateDbIfNeeded(db: SQLiteDatabase) {
             }
             currentDbVersion = 12;
         }
-
         if (currentDbVersion < 13) {
             // Migration to v13: Add image column to transactions for older databases
             console.log("Migrating to v13: Adding image column to transactions...");
@@ -210,6 +225,46 @@ export async function migrateDbIfNeeded(db: SQLiteDatabase) {
                 console.log("image column may already exist in transactions.");
             }
             currentDbVersion = 13;
+        }
+
+        if (currentDbVersion < 14) {
+            // Migration to v14: Add group tables and group_id columns
+            console.log("Migrating to v14: Adding group support tables and columns...");
+            try {
+                await db.execAsync(`
+                    CREATE TABLE IF NOT EXISTS groups (
+                        id TEXT PRIMARY KEY NOT NULL,
+                        name TEXT NOT NULL,
+                        description TEXT,
+                        invite_code TEXT UNIQUE NOT NULL,
+                        budget_limit REAL DEFAULT 0,
+                        budget_period TEXT DEFAULT 'Monthly',
+                        created_by TEXT
+                    );
+                    CREATE TABLE IF NOT EXISTS group_members (
+                        group_id TEXT NOT NULL,
+                        user_id TEXT NOT NULL,
+                        role TEXT DEFAULT 'member',
+                        share_income INTEGER DEFAULT 0,
+                        share_savings INTEGER DEFAULT 0,
+                        share_investments INTEGER DEFAULT 0,
+                        share_debts INTEGER DEFAULT 0,
+                        PRIMARY KEY (group_id, user_id)
+                    );
+                `);
+
+                const tablesToAlter = ['transactions', 'categories', 'debts'];
+                for (const table of tablesToAlter) {
+                    try {
+                        await db.execAsync(`ALTER TABLE ${table} ADD COLUMN group_id TEXT;`);
+                    } catch (e) {
+                        console.log(`group_id column may already exist in ${table}`);
+                    }
+                }
+            } catch (e) {
+                console.error("Migration error v14:", e);
+            }
+            currentDbVersion = 14;
         }
 
         await db.execAsync(`PRAGMA user_version = ${DATABASE_VERSION}`);
