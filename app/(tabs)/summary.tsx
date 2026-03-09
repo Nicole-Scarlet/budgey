@@ -261,7 +261,7 @@ export default function SummaryScreen() {
                                         iconBgColor={iconBgColor}
                                         title={transaction.title}
                                         titleColor={colors.foreground}
-                                        subtitle={`${transaction.date}${activeGroupId && transaction.userId && transaction.userId !== currentUserId ? ` • by ${profiles.find(p => p.id === transaction.userId)?.full_name || 'Member'}` : ''}`}
+                                        subtitle={`${transaction.date}${activeGroupId && transaction.userId && transaction.userId !== currentUserId ? ` • by ${profiles.find(p => p.id === transaction.userId)?.firstName || 'Member'}` : ''}`}
                                         amount={`${sign}₱${transaction.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
                                         amountColor={amountColor}
                                         onDelete={() => {

@@ -48,6 +48,8 @@ export interface Category {
     icon: string;
     color: string;
     order_index?: number;
+    groupId?: string;
+    userId?: string;
 }
 
 export interface DebtPayment {
@@ -100,7 +102,7 @@ interface TransactionContextData {
     incomeGoalPeriod: GoalPeriod;
     setIncomeGoalPeriod: (period: GoalPeriod) => Promise<void>;
     categories: Category[];
-    addCategory: (category: Omit<Category, 'id'>) => Promise<void>;
+    addCategory: (category: Omit<Category, 'id' | 'groupId' | 'userId'>) => Promise<void>;
     updateCategory: (id: string, category: Partial<Category>) => Promise<void>;
     deleteCategory: (id: string) => Promise<void>;
     updateCategoryOrder: (newCategories: Category[]) => Promise<void>;
@@ -259,10 +261,13 @@ export const TransactionProvider: React.FC<TransactionProviderProps> = ({ childr
             setTransactions(txs);
 
             // Load categories
-            const cats = await db.getAllAsync<any>(
-                'SELECT * FROM categories WHERE user_id = ? ORDER BY order_index ASC',
-                [currentUserId]
-            );
+            const queryCats = joinedGroupIds.length > 0 
+                ? `SELECT * FROM categories WHERE user_id = ? OR group_id IN (${placeholders}) ORDER BY order_index ASC`
+                : `SELECT * FROM categories WHERE user_id = ? ORDER BY order_index ASC`;
+            const catParams = joinedGroupIds.length > 0 ? [currentUserId, ...joinedGroupIds] : [currentUserId];
+
+            const cats = await db.getAllAsync<any>(queryCats, catParams);
+            
             setCategories(cats.map(c => ({
                 id: c.id,
                 name: c.name,
@@ -271,7 +276,9 @@ export const TransactionProvider: React.FC<TransactionProviderProps> = ({ childr
                 limit: c.limit_val,
                 icon: c.icon,
                 color: c.color,
-                order_index: c.order_index
+                order_index: c.order_index,
+                groupId: c.group_id,
+                userId: c.user_id
             })));
 
             const mappedDebts: Debt[] = debtRecords.map(d => ({
@@ -321,90 +328,149 @@ export const TransactionProvider: React.FC<TransactionProviderProps> = ({ childr
             if (!user) return;
 
             console.log("Starting sync from remote for user:", user.id);
+
+            // Quick connectivity test
+            const { data: testGroups, error: testError } = await supabase.from('groups').select('id, name, budget_limit');
+            console.log('🔍 SUPABASE GROUPS TEST - data:', JSON.stringify(testGroups), 'error:', testError);
+            const { data: testTx, error: testTxErr } = await supabase.from('transactions').select('id, title, group_id').limit(5);
+            console.log('🔍 SUPABASE TRANSACTIONS TEST - data:', JSON.stringify(testTx), 'error:', testTxErr);
+            
+            // 0. Sync Groups & Memberships
+            try {
+                const { data: remoteMembers } = await supabase.from('group_members').select('*').eq('user_id', user.id);
+                if (remoteMembers && remoteMembers.length > 0) {
+                    for (const m of remoteMembers) {
+                        try {
+                            await db.runAsync(
+                                'INSERT OR REPLACE INTO group_members (group_id, user_id, role, share_income, share_savings, share_investments, share_debts) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                                [m.group_id, m.user_id, m.role ?? 'member', m.share_income ?? 0, m.share_savings ?? 0, m.share_investments ?? 0, m.share_debts ?? 0]
+                            );
+                        } catch (e) { console.error("Group Member Sync Error:", e, m); }
+                    }
+
+                    const groupIds = remoteMembers.map(m => m.group_id);
+                    const { data: remoteGroups } = await supabase.from('groups').select('*').in('id', groupIds);
+                    if (remoteGroups) {
+                        for (const g of remoteGroups) {
+                            try {
+                                await db.runAsync(
+                                    'INSERT OR REPLACE INTO groups (id, name, description, invite_code, budget_limit, budget_period, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                                    [g.id, g.name, g.description ?? '', g.invite_code, g.budget_limit ?? 0, g.budget_period ?? 'Monthly', g.created_by]
+                                );
+                            } catch (e) { console.error("Group Sync Error:", e, g); }
+                        }
+                    }
+                }
+            } catch (e) { console.error("Groups Fetch Error:", e); }
             
             // 1. Sync Categories
-            const { data: remoteCats } = await supabase.from('categories').select('*').eq('user_id', user.id);
-            if (remoteCats) {
-                for (const cat of remoteCats) {
-                    await db.runAsync(
-                        'INSERT OR REPLACE INTO categories (id, user_id, name, type, group_name, limit_val, icon, color, order_index) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                        [cat.id, user.id, cat.name, cat.type, cat.group_name, cat.limit_val, cat.icon, cat.color, cat.order_index]
-                    );
+            try {
+                const { data: personalCats } = await supabase.from('categories').select('*').eq('user_id', user.id).is('group_id', null);
+                const { data: groupCats } = await supabase.from('categories').select('*').not('group_id', 'is', null);
+                
+                const allRemoteCats = [...(personalCats || []), ...(groupCats || [])];
+                
+                if (allRemoteCats.length > 0) {
+                    for (const cat of allRemoteCats) {
+                        try {
+                            await db.runAsync(
+                                'INSERT OR REPLACE INTO categories (id, user_id, name, type, group_name, limit_val, icon, color, order_index, group_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                                [cat.id, cat.user_id, cat.name, cat.type, cat.group_name ?? '', cat.limit_val ?? 0, cat.icon ?? 'circle', cat.color ?? '#000000', cat.order_index ?? 0, cat.group_id ?? null]
+                            );
+                        } catch (e) { console.error("Category Sync Error:", e, cat); }
+                    }
                 }
-            }
+            } catch (e) { console.error("Category Fetch Error:", e); }
             
             // 2. Sync Transactions (Mine + Groups)
-            // Fetch personal transactions
-            const { data: personalTxs } = await supabase.from('transactions').select('*').eq('user_id', user.id).is('group_id', null);
-            // Fetch group transactions (RLS handles shared visibility)
-            const { data: groupTxs } = await supabase.from('transactions').select('*').not('group_id', 'is', null);
-            
-            const allRemoteTxs = [...(personalTxs || []), ...(groupTxs || [])];
-            
-            if (allRemoteTxs.length > 0) {
-                for (const tx of allRemoteTxs) {
-                    const normalizedDate = normalizeDate(tx.date);
-                    await db.runAsync(
-                        'INSERT OR REPLACE INTO transactions (id, user_id, type, amount, title, date, categoryId, image, group_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                        [tx.id, tx.user_id, tx.type, tx.amount, tx.title, normalizedDate, tx.categoryId, tx.image, tx.group_id]
-                    );
+            try {
+                const { data: personalTxs } = await supabase.from('transactions').select('*').eq('user_id', user.id).is('group_id', null);
+                const { data: groupTxs } = await supabase.from('transactions').select('*').not('group_id', 'is', null);
+                const allRemoteTxs = [...(personalTxs || []), ...(groupTxs || [])];
+                
+                if (allRemoteTxs.length > 0) {
+                    for (const tx of allRemoteTxs) {
+                        try {
+                            const normalizedDate = normalizeDate(tx.date);
+                            await db.runAsync(
+                                'INSERT OR REPLACE INTO transactions (id, user_id, type, amount, title, date, categoryId, image, group_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                                [tx.id, tx.user_id, tx.type ?? 'expense', tx.amount ?? 0, tx.title ?? '', normalizedDate ?? '', tx.categoryId ?? null, tx.image ?? null, tx.group_id ?? null]
+                            );
+                        } catch (e) { console.error("Transaction Sync Error:", e, tx); }
+                    }
                 }
-            }
+            } catch (e) { console.error("Transaction Fetch Error:", e); }
             
             // 3. Sync Debts (Mine + Groups)
-            const { data: personalDebts } = await supabase.from('debts').select('*').eq('user_id', user.id).is('group_id', null);
-            const { data: groupDebts } = await supabase.from('debts').select('*').not('group_id', 'is', null);
-            const allRemoteDebts = [...(personalDebts || []), ...(groupDebts || [])];
-            
-            if (allRemoteDebts.length > 0) {
-                for (const debt of allRemoteDebts) {
-                    await db.runAsync(
-                        'INSERT OR REPLACE INTO debts (id, user_id, person, description, date, initialAmount, remainingAmount, direction, status, categoryId, group_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                        [debt.id, debt.user_id, debt.person, debt.description, debt.date, debt.initialAmount, debt.remainingAmount, debt.direction, debt.status, debt.categoryId, debt.group_id]
-                    );
+            let allRemoteDebts: any[] = [];
+            try {
+                const { data: personalDebts } = await supabase.from('debts').select('*').eq('user_id', user.id).is('group_id', null);
+                const { data: groupDebts } = await supabase.from('debts').select('*').not('group_id', 'is', null);
+                allRemoteDebts = [...(personalDebts || []), ...(groupDebts || [])];
+                
+                if (allRemoteDebts.length > 0) {
+                    for (const debt of allRemoteDebts) {
+                        try {
+                            await db.runAsync(
+                                'INSERT OR REPLACE INTO debts (id, user_id, person, description, date, initialAmount, remainingAmount, direction, status, categoryId, group_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                                [debt.id, debt.user_id, debt.person ?? 'Unknown', debt.description ?? '', debt.date ?? '', debt.initialAmount ?? 0, debt.remainingAmount ?? 0, debt.direction ?? '', debt.status ?? 'pending', debt.categoryId ?? null, debt.group_id ?? null]
+                            );
+                        } catch (e) { console.error("Debt Sync Error:", e, debt); }
+                    }
                 }
-            }
+            } catch (e) { console.error("Debt Fetch Error:", e); }
             
             // 4. Sync Debt Payments (Mine + Group Debt Payments)
-            // Fetch all payments for any debt I can see
-            const visibleDebtIds = allRemoteDebts.map(d => d.id);
-            if (visibleDebtIds.length > 0) {
-                const { data: remotePayments } = await supabase.from('debt_payments').select('*').in('debtId', visibleDebtIds);
-                if (remotePayments) {
-                    for (const p of remotePayments) {
-                        await db.runAsync(
-                            'INSERT OR REPLACE INTO debt_payments (id, user_id, debtId, amount, date) VALUES (?, ?, ?, ?, ?)',
-                            [p.id, p.user_id, p.debtId, p.amount, p.date]
-                        );
+            try {
+                const visibleDebtIds = allRemoteDebts.map(d => d.id);
+                if (visibleDebtIds.length > 0) {
+                    const { data: remotePayments } = await supabase.from('debt_payments').select('*').in('debtId', visibleDebtIds);
+                    if (remotePayments) {
+                        for (const p of remotePayments) {
+                            try {
+                                await db.runAsync(
+                                    'INSERT OR REPLACE INTO debt_payments (id, user_id, debtId, amount, date) VALUES (?, ?, ?, ?, ?)',
+                                    [p.id, p.user_id, p.debtId, p.amount ?? 0, p.date ?? '']
+                                );
+                            } catch (e) { console.error("Debt Payment Sync Error:", e, p); }
+                        }
                     }
                 }
-            }
+            } catch (e) { console.error("Debt Payment Fetch Error:", e); }
 
             // Sync Group Member Profiles
-            const localMembersForProfiles = await db.getAllAsync<any>('SELECT user_id FROM group_members');
-            const memberUserIds = localMembersForProfiles.map((m: any) => m.user_id);
-            if (memberUserIds.length > 0) {
-                const { data: remoteProfiles } = await supabase.from('profile').select('*').in('id', memberUserIds);
-                if (remoteProfiles) {
-                    for (const prof of remoteProfiles) {
-                        await db.runAsync(
-                            'INSERT OR REPLACE INTO profile (id, full_name, email, avatarUrl) VALUES (?, ?, ?, ?)',
-                            [prof.id, prof.full_name, prof.email, prof.avatarUrl]
-                        );
+            try {
+                const localMembersForProfiles = await db.getAllAsync<any>('SELECT user_id FROM group_members');
+                const memberUserIds = localMembersForProfiles.map((m: any) => m.user_id);
+                if (memberUserIds.length > 0) {
+                    const { data: remoteProfiles } = await supabase.from('profile').select('*').in('user_id', memberUserIds);
+                    if (remoteProfiles) {
+                        for (const prof of remoteProfiles) {
+                            try {
+                                await db.runAsync(
+                                    'INSERT OR REPLACE INTO profile (id, user_id, firstName, lastName, email, avatarUrl) VALUES (?, ?, ?, ?, ?, ?)',
+                                    [prof.user_id ?? prof.id, prof.user_id ?? prof.id, prof.first_name || prof.firstName || 'User', prof.last_name || prof.lastName || '', prof.email || '', prof.avatarUrl ?? null]
+                                );
+                            } catch (e) { console.error("Profile Sync Error:", e, prof); }
+                        }
                     }
                 }
-            }
+            } catch (e) { console.error("Profile Fetch Error:", e); }
 
             // 5. Sync Settings
-            const { data: remoteSettings } = await supabase.from('settings').select('*').eq('user_id', user.id);
-            if (remoteSettings) {
-                for (const s of remoteSettings) {
-                    await db.runAsync(
-                        'INSERT OR REPLACE INTO settings (key, user_id, value) VALUES (?, ?, ?)',
-                        [s.key, user.id, s.value]
-                    );
+            try {
+                const { data: remoteSettings } = await supabase.from('settings').select('*').eq('user_id', user.id);
+                if (remoteSettings) {
+                    for (const s of remoteSettings) {
+                        try {
+                            await db.runAsync(
+                                'INSERT OR REPLACE INTO settings (key, user_id, value) VALUES (?, ?, ?)',
+                                [s.key, user.id, s.value ?? '']
+                            );
+                        } catch (e) { console.error("Settings Sync Error:", e, s); }
+                    }
                 }
-            }
+            } catch (e) { console.error("Settings Fetch Error:", e); }
 
             // Reload local state
             await loadData();
@@ -456,8 +522,17 @@ export const TransactionProvider: React.FC<TransactionProviderProps> = ({ childr
             }
         });
 
+        // Supabase Real-time Postgres Listener
+        const channel = supabase.channel('group_data_changes')
+            .on('postgres_changes', { event: '*', schema: 'public' }, (payload) => {
+                console.log("Realtime Postgres change detected:", payload);
+                syncData();
+            })
+            .subscribe();
+
         return () => {
             subscription.unsubscribe();
+            supabase.removeChannel(channel);
         };
     }, [db]);
 
@@ -500,7 +575,7 @@ export const TransactionProvider: React.FC<TransactionProviderProps> = ({ childr
 
         // 2. Try to push to Supabase
         if (user) {
-            await supabase.from('transactions').insert([{
+            const { error: txInsertError } = await supabase.from('transactions').insert([{
                 id,
                 user_id: user.id,
                 type: newTransaction.type,
@@ -511,31 +586,44 @@ export const TransactionProvider: React.FC<TransactionProviderProps> = ({ childr
                 image: newTransaction.image || null,
                 group_id: newTransaction.groupId || null
             }]);
+            if (txInsertError) console.error('❌ SUPABASE TX INSERT FAILED:', txInsertError);
+            else console.log('✅ Transaction pushed to Supabase');
         }
     };
 
     const deleteTransaction = async (id: string) => {
         await db.runAsync('DELETE FROM transactions WHERE id = ?', [id]);
         setTransactions((prev) => prev.filter(t => t.id !== id));
+        
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+            await supabase.from('transactions').delete().eq('id', id);
+        }
     };
 
-    const addCategory = async (categoryData: Omit<Category, 'id'>) => {
+    const addCategory = async (categoryData: Omit<Category, 'id' | 'groupId' | 'userId'>) => {
         const id = Date.now().toString() + Math.random().toString(36).substring(7);
         const orderIndex = categories.length > 0 ? Math.max(...categories.map(c => c.order_index || 0)) + 1 : 0;
-        const newCategory: Category = { ...categoryData, id, order_index: orderIndex };
-
         const { data: { user } } = await supabase.auth.getUser();
+
+        const newCategory: Category = { 
+            ...categoryData, 
+            id, 
+            order_index: orderIndex,
+            groupId: activeGroupId || undefined,
+            userId: user?.id || 'local'
+        };
 
         // 1. Save locally
         await db.runAsync(
-            'INSERT INTO categories (id, user_id, name, type, group_name, limit_val, icon, color, order_index) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            [id, user?.id || 'local', newCategory.name, newCategory.type, newCategory.group, newCategory.limit, newCategory.icon, newCategory.color, orderIndex]
+            'INSERT INTO categories (id, user_id, name, type, group_name, limit_val, icon, color, order_index, group_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [id, user?.id || 'local', newCategory.name, newCategory.type, newCategory.group, newCategory.limit, newCategory.icon, newCategory.color, orderIndex, activeGroupId || null]
         );
         setCategories((prev) => [...prev, newCategory]);
 
         // 2. Push to Supabase
         if (user) {
-            await supabase.from('categories').insert([{
+            const { error: catInsertError } = await supabase.from('categories').insert([{
                 id,
                 user_id: user.id,
                 name: newCategory.name,
@@ -544,8 +632,11 @@ export const TransactionProvider: React.FC<TransactionProviderProps> = ({ childr
                 limit_val: newCategory.limit,
                 icon: newCategory.icon,
                 color: newCategory.color,
-                order_index: orderIndex
+                order_index: orderIndex,
+                group_id: activeGroupId || null
             }]);
+            if (catInsertError) console.error('❌ SUPABASE CAT INSERT FAILED:', catInsertError);
+            else console.log('✅ Category pushed to Supabase');
         }
     };
 
@@ -560,6 +651,18 @@ export const TransactionProvider: React.FC<TransactionProviderProps> = ({ childr
         );
 
         setCategories((prev) => prev.map(c => c.id === id ? updated : c));
+
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+            await supabase.from('categories').update({
+                name: updated.name,
+                type: updated.type,
+                group_name: updated.group,
+                limit_val: updated.limit,
+                icon: updated.icon,
+                color: updated.color
+            }).eq('id', id);
+        }
     };
 
     const deleteCategory = async (id: string) => {
@@ -567,14 +670,26 @@ export const TransactionProvider: React.FC<TransactionProviderProps> = ({ childr
         await db.runAsync('DELETE FROM transactions WHERE categoryId = ?', [id]);
         setCategories((prev) => prev.filter(c => c.id !== id));
         setTransactions((prev) => prev.filter(t => t.categoryId !== id));
+
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+            await supabase.from('transactions').delete().eq('categoryId', id);
+            await supabase.from('categories').delete().eq('id', id);
+        }
     };
 
     const updateCategoryOrder = async (newCategories: Category[]) => {
         setCategories(newCategories);
         
+        const { data: { user } } = await supabase.auth.getUser();
+        
         // Persist order to database
         for (let i = 0; i < newCategories.length; i++) {
             await db.runAsync('UPDATE categories SET order_index = ? WHERE id = ?', [i, newCategories[i].id]);
+            
+            if (user) {
+                await supabase.from('categories').update({ order_index: i }).eq('id', newCategories[i].id);
+            }
         }
     };
 
@@ -764,7 +879,12 @@ export const TransactionProvider: React.FC<TransactionProviderProps> = ({ childr
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error("Must be logged in to create a group");
 
-        const id = Date.now().toString() + Math.random().toString(36).substring(7);
+        // Supabase requires a valid UUID, so we generate a v4 UUID here
+        const id = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+            const r = Math.random() * 16 | 0;
+            const v = c === 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
         const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
 
         const groupData = {
@@ -843,15 +963,15 @@ export const TransactionProvider: React.FC<TransactionProviderProps> = ({ childr
 
         // Also sync the creator's profile so we can show their name
         const { data: creatorProfile } = await supabase
-            .from('profiles')
-            .select('id, full_name, email, avatar_url')
-            .eq('id', group.created_by)
-            .single();
+            .from('profile')
+            .select('*')
+            .eq('user_id', group.created_by)
+            .maybeSingle();
 
         if (creatorProfile) {
             await db.runAsync(
-                'INSERT OR REPLACE INTO profile (id, full_name, email, avatarUrl) VALUES (?, ?, ?, ?)',
-                [creatorProfile.id, creatorProfile.full_name, creatorProfile.email, creatorProfile.avatar_url]
+                'INSERT OR REPLACE INTO profile (id, user_id, firstName, lastName, email, avatarUrl) VALUES (?, ?, ?, ?, ?, ?)',
+                [creatorProfile.user_id, creatorProfile.user_id, creatorProfile.first_name || creatorProfile.firstName || 'User', creatorProfile.last_name || creatorProfile.lastName || '', creatorProfile.email || '', creatorProfile.avatarUrl || null]
             );
         }
 
@@ -929,7 +1049,9 @@ export const TransactionProvider: React.FC<TransactionProviderProps> = ({ childr
         if (updates.budgetPeriod) supabaseUpdates.budget_period = updates.budgetPeriod;
 
         if (Object.keys(supabaseUpdates).length > 0) {
-            await supabase.from('groups').update(supabaseUpdates).eq('id', groupId);
+            const { error: groupUpdateError } = await supabase.from('groups').update(supabaseUpdates).eq('id', groupId);
+            if (groupUpdateError) console.error('❌ SUPABASE GROUP UPDATE FAILED:', groupUpdateError);
+            else console.log('✅ Group budget updated on Supabase:', supabaseUpdates);
         }
 
         await loadData();

@@ -343,7 +343,7 @@ export default function ExpensesScreen() {
                                         <Text className="font-medium text-[16px] mb-1" style={{ color: colors.foreground }}>{item.title}</Text>
                                         <View className="flex-row items-center">
                                             <Text className="text-[12px]" style={{ color: colors.muted }}>
-                                                {item.date}{activeGroupId && item.userId && item.userId !== currentUserId ? ` • by ${profiles.find(p => p.id === item.userId)?.full_name || 'Member'}` : ''}
+                                                {item.date}{activeGroupId && item.userId && item.userId !== currentUserId ? ` • by ${profiles.find(p => p.id === item.userId)?.firstName || 'Member'}` : ''}
                                             </Text>
                                             {item.image && (
                                                 <View className="ml-2 bg-blue-500/10 px-1.5 py-0.5 rounded-md flex-row items-center">

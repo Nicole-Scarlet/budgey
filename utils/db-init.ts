@@ -1,6 +1,6 @@
 import { SQLiteDatabase } from 'expo-sqlite';
 
-const DATABASE_VERSION = 14;
+const DATABASE_VERSION = 16;
 
 export async function migrateDbIfNeeded(db: SQLiteDatabase) {
     try {
@@ -91,8 +91,11 @@ export async function migrateDbIfNeeded(db: SQLiteDatabase) {
                 );
                 CREATE TABLE IF NOT EXISTS profile (
                     id TEXT PRIMARY KEY,
-                    full_name TEXT,
+                    user_id TEXT,
+                    firstName TEXT,
+                    lastName TEXT,
                     email TEXT,
+                    password TEXT,
                     avatarUrl TEXT
                 );
 
@@ -272,6 +275,106 @@ export async function migrateDbIfNeeded(db: SQLiteDatabase) {
                 console.error("Migration error v14:", e);
             }
             currentDbVersion = 14;
+        }
+
+        if (currentDbVersion < 15) {
+            // Migration to v15: Fix profile table to have firstName, lastName, password columns
+            // instead of just full_name. ProfileContext.tsx expects these columns.
+            console.log("Migrating to v15: Fixing profile table columns...");
+            try {
+                // Check if the profile table has firstName column already
+                const tableInfo = await db.getAllAsync<{ name: string }>('PRAGMA table_info(profile)');
+                const hasFirstName = tableInfo.some(col => col.name === 'firstName');
+
+                if (!hasFirstName) {
+                    // Approach: Add missing columns to existing table (safer than recreating)
+                    const colNames = tableInfo.map(c => c.name);
+
+                    if (!colNames.includes('firstName')) {
+                        try { await db.execAsync('ALTER TABLE profile ADD COLUMN firstName TEXT;'); } catch(e) {}
+                    }
+                    if (!colNames.includes('lastName')) {
+                        try { await db.execAsync('ALTER TABLE profile ADD COLUMN lastName TEXT;'); } catch(e) {}
+                    }
+                    if (!colNames.includes('password')) {
+                        try { await db.execAsync('ALTER TABLE profile ADD COLUMN password TEXT;'); } catch(e) {}
+                    }
+                    if (!colNames.includes('user_id')) {
+                        try { await db.execAsync('ALTER TABLE profile ADD COLUMN user_id TEXT;'); } catch(e) {}
+                    }
+                    if (!colNames.includes('avatarUrl')) {
+                        try { await db.execAsync('ALTER TABLE profile ADD COLUMN avatarUrl TEXT;'); } catch(e) {}
+                    }
+
+                    // Migrate full_name → firstName + lastName if full_name exists
+                    if (colNames.includes('full_name')) {
+                        try {
+                            const oldRows = await db.getAllAsync<any>('SELECT * FROM profile');
+                            for (const row of oldRows) {
+                                const fullName = row.full_name || '';
+                                const parts = fullName.split(' ');
+                                const fName = parts[0] || 'User';
+                                const lName = parts.slice(1).join(' ') || '';
+                                await db.runAsync(
+                                    'UPDATE profile SET firstName = ?, lastName = ?, user_id = COALESCE(user_id, ?) WHERE id = ?',
+                                    [fName, lName, 'local', row.id]
+                                );
+                            }
+                        } catch (e) {
+                            console.log('full_name migration error:', e);
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error("Migration error v15:", e);
+            }
+            currentDbVersion = 15;
+        }
+
+        if (currentDbVersion < 16) {
+            // Migration to v16: Rebuild the profile table to ensure the `id` column 
+            // is safely typed as TEXT. Older databases might have initialized it as INTEGER
+            // when it was hardcoded to `1`, which causes a "datatype mismatch" when syncing UUIDs.
+            console.log("Migrating to v16: Rebuilding profile table to enforce TEXT PK...");
+            try {
+                // Determine what columns we can safely migrate over 
+                const tableInfo = await db.getAllAsync<{ name: string }>('PRAGMA table_info(profile)');
+                const cols = tableInfo.map(c => c.name);
+                
+                await db.execAsync(`
+                    CREATE TABLE IF NOT EXISTS profile_new (
+                        id TEXT PRIMARY KEY NOT NULL,
+                        user_id TEXT,
+                        firstName TEXT,
+                        lastName TEXT,
+                        email TEXT,
+                        password TEXT,
+                        avatarUrl TEXT
+                    );
+                `);
+
+                // Dynamically build the SELECT query based on what the old table actually has
+                const selectCols = [
+                    'CAST(id AS TEXT)',
+                    cols.includes('user_id') ? 'user_id' : 'NULL',
+                    cols.includes('firstName') ? 'firstName' : 'NULL',
+                    cols.includes('lastName') ? 'lastName' : 'NULL',
+                    cols.includes('email') ? 'email' : 'NULL',
+                    cols.includes('password') ? 'password' : 'NULL',
+                    cols.includes('avatarUrl') ? 'avatarUrl' : 'NULL'
+                ].join(', ');
+
+                await db.execAsync(`
+                    INSERT INTO profile_new (id, user_id, firstName, lastName, email, password, avatarUrl)
+                    SELECT ${selectCols} FROM profile;
+                    
+                    DROP TABLE profile;
+                    ALTER TABLE profile_new RENAME TO profile;
+                `);
+            } catch (e) {
+                console.error("Migration error v16:", e);
+            }
+            currentDbVersion = 16;
         }
 
         await db.execAsync(`PRAGMA user_version = ${DATABASE_VERSION}`);

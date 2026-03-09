@@ -36,17 +36,24 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
             const { data: { user } } = await supabase.auth.getUser();
             const currentUserId = user?.id || 'local';
 
-            const result = await db.getFirstAsync<ProfileData>(
-                "SELECT firstName, lastName, email, password, avatarUrl FROM profile WHERE user_id = ?",
+            const result = await db.getFirstAsync<any>(
+                "SELECT * FROM profile WHERE user_id = ?",
                 [currentUserId]
             );
             if (result) {
-                setProfile(result);
+                setProfile({
+                    firstName: result.firstName || result.first_name || defaultProfile.firstName,
+                    lastName: result.lastName || result.last_name || defaultProfile.lastName,
+                    email: result.email || defaultProfile.email,
+                    password: result.password || defaultProfile.password,
+                    avatarUrl: result.avatarUrl || undefined,
+                });
             } else {
                 setProfile(defaultProfile);
             }
         } catch (error) {
             console.error("Error fetching profile:", error);
+            setProfile(defaultProfile);
         }
     };
 
@@ -56,22 +63,28 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
             if (user) {
                 const meta = user.user_metadata;
 
-                // Pull avatar from Supabase profile table (plain TEXT column).
-                // Fall back to local SQLite if Supabase has nothing yet.
+                // Pull avatar — wrapped in its own try-catch so failures don't block sync
                 let remoteAvatarUrl: string | null = null;
-                const { data: remoteProfile } = await supabase
-                    .from('profile')
-                    .select('avatarUrl')
-                    .eq('user_id', user.id)
-                    .maybeSingle();
-                if (remoteProfile?.avatarUrl) {
-                    remoteAvatarUrl = remoteProfile.avatarUrl;
-                } else {
-                    // Fallback: use whatever is already in local SQLite
-                    const localRow = await db.getFirstAsync<{ avatarUrl: string | null }>(
-                        "SELECT avatarUrl FROM profile WHERE user_id = ?", [user.id]
-                    );
-                    remoteAvatarUrl = localRow?.avatarUrl || null;
+                try {
+                    const { data: remoteProfile } = await supabase
+                        .from('profile')
+                        .select('avatarUrl')
+                        .eq('user_id', user.id)
+                        .maybeSingle();
+                    if (remoteProfile?.avatarUrl) {
+                        remoteAvatarUrl = remoteProfile.avatarUrl;
+                    }
+                } catch (e) {
+                    console.log("Could not fetch remote avatar, using local fallback.");
+                }
+
+                if (!remoteAvatarUrl) {
+                    try {
+                        const localRow = await db.getFirstAsync<any>(
+                            "SELECT * FROM profile WHERE user_id = ?", [user.id]
+                        );
+                        remoteAvatarUrl = localRow?.avatarUrl || null;
+                    } catch (e) {}
                 }
 
                 const syncedProfile: ProfileData = {
@@ -82,10 +95,14 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
                     avatarUrl: remoteAvatarUrl || undefined,
                 };
 
-                await db.runAsync(
-                    "INSERT OR REPLACE INTO profile (id, user_id, firstName, lastName, email, password, avatarUrl) VALUES (1, ?, ?, ?, ?, ?, ?)",
-                    [user.id, syncedProfile.firstName, syncedProfile.lastName, syncedProfile.email, syncedProfile.password || "", syncedProfile.avatarUrl || null]
-                );
+                try {
+                    await db.runAsync(
+                        "INSERT OR REPLACE INTO profile (id, user_id, firstName, lastName, email, password, avatarUrl) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                        [user.id, user.id, syncedProfile.firstName, syncedProfile.lastName, syncedProfile.email, syncedProfile.password || "", syncedProfile.avatarUrl || null]
+                    );
+                } catch (dbError) {
+                    console.log("Profile DB write failed, will retry next launch:", dbError);
+                }
                 setProfile(syncedProfile);
             }
         } catch (error) {

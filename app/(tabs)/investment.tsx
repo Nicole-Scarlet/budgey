@@ -341,7 +341,7 @@ export default function InvestmentScreen() {
                                     <View className="flex-1 justify-center">
                                         <Text className="font-medium text-[16px] mb-1" style={{ color: colors.foreground }}>{item.title}</Text>
                                         <Text className="text-[12px]" style={{ color: colors.muted }}>
-                                            {item.date}{activeGroupId && item.userId && item.userId !== currentUserId ? ` • by ${profiles.find(p => p.id === item.userId)?.full_name || 'Member'}` : ''}
+                                            {item.date}{activeGroupId && item.userId && item.userId !== currentUserId ? ` • by ${profiles.find(p => p.id === item.userId)?.firstName || 'Member'}` : ''}
                                         </Text>
                                     </View>
 
