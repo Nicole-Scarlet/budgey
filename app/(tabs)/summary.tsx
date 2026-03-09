@@ -24,8 +24,17 @@ export default function SummaryScreen() {
         subtractInvestmentFromBudget,
         setSubtractInvestmentFromBudget,
         subtractDebtFromBudget,
-        setSubtractDebtFromBudget
+        setSubtractDebtFromBudget,
+        activeGroupId,
+        groups,
+        updateGroup,
+        profiles,
+        currentUserId
     } = useTransactions();
+
+    const activeGroup = groups.find(g => g.id === activeGroupId);
+    const displayBudget = activeGroup ? activeGroup.budgetLimit : budget;
+    const displayPeriod = activeGroup ? activeGroup.budgetPeriod : budgetPeriod;
 
     const [filterPeriod, setFilterPeriod] = useState<'All' | 'Daily' | 'Weekly' | 'Monthly'>('All');
     const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
@@ -65,7 +74,13 @@ export default function SummaryScreen() {
         });
     };
 
-    const filteredTransactions = filterTransactionsByPeriod(transactions);
+    const filteredTransactions = filterTransactionsByPeriod(transactions).filter(t => {
+        if (activeGroupId) {
+            return t.groupId === activeGroupId;
+        } else {
+            return !t.groupId;
+        }
+    });
 
     const categories = [
         { name: 'Expenses', icon: 'cart-outline', type: 'material' },
@@ -80,25 +95,25 @@ export default function SummaryScreen() {
             {/* Header with Set Budget */}
             <View style={{ backgroundColor: colors.card }} className="rounded-b-[40px] pt-8 pb-10 shadow-lg">
                 <View className="items-center mt-2 relative">
-                    <Text className="text-[42px] font-bold tracking-tight" style={{ color: colors.foreground }}>₱{(budget + getTotalBalance()).toLocaleString('en-US', { minimumFractionDigits: 2 })}</Text>
-                    <Text className="text-lg font-medium mt-2" style={{ color: colors.foreground + 'CC' }}>Overall Budget</Text>
+                    <Text className="text-[42px] font-bold tracking-tight" style={{ color: colors.foreground }}>₱{(displayBudget + getTotalBalance()).toLocaleString('en-US', { minimumFractionDigits: 2 })}</Text>
+                    <Text className="text-lg font-medium mt-2" style={{ color: colors.foreground + 'CC' }}>{activeGroup ? `${activeGroup.name} Budget` : 'Overall Budget'}</Text>
 
                     <Pressable
                         onPress={() => {
-                            setTempBudget(budget > 0 ? budget.toString() : '');
-                            setTempPeriod(budget > 0 ? budgetPeriod : 'Monthly');
+                            setTempBudget(displayBudget > 0 ? displayBudget.toString() : '');
+                            setTempPeriod(displayBudget > 0 ? (displayPeriod as any) : 'Monthly');
                             setTempSubtractSavings(subtractSavingsFromBudget);
                             setTempSubtractInvestment(subtractInvestmentFromBudget);
                             setTempSubtractDebt(subtractDebtFromBudget);
                             setIsBudgetModalVisible(true)
                         }}
                     >
-                        {budget > 0 ? (
+                        {displayBudget > 0 ? (
                             <Text 
                                 className="font-medium text-sm mt-3 px-4 py-2 rounded-full border"
                                 style={{ color: '#38BDF8', backgroundColor: colors.background, borderColor: colors.border + '4D' }}
                             >
-                                Limit: ₱{budget.toLocaleString('en-US', { minimumFractionDigits: 2 })} / {budgetPeriod} (Edit)
+                                Limit: ₱{displayBudget.toLocaleString('en-US', { minimumFractionDigits: 2 })} / {displayPeriod} (Edit)
                             </Text>
                         ) : (
                             <Text 
@@ -246,6 +261,7 @@ export default function SummaryScreen() {
                                         iconBgColor={iconBgColor}
                                         title={transaction.title}
                                         titleColor={colors.foreground}
+                                        subtitle={`${transaction.date}${activeGroupId && transaction.userId && transaction.userId !== currentUserId ? ` • by ${profiles.find(p => p.id === transaction.userId)?.full_name || 'Member'}` : ''}`}
                                         amount={`${sign}₱${transaction.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
                                         amountColor={amountColor}
                                         onDelete={() => {
@@ -389,8 +405,15 @@ export default function SummaryScreen() {
                                     onPress={async () => {
                                         const parsedBudget = parseFloat(tempBudget.replace(/[^0-9.-]+/g, ''));
                                         if (!isNaN(parsedBudget) && parsedBudget >= 0) {
-                                            await setBudget(parsedBudget);
-                                            await setBudgetPeriod(tempPeriod as any);
+                                            if (activeGroupId) {
+                                                await updateGroup(activeGroupId, {
+                                                    budgetLimit: parsedBudget,
+                                                    budgetPeriod: tempPeriod as any
+                                                });
+                                            } else {
+                                                await setBudget(parsedBudget);
+                                                await setBudgetPeriod(tempPeriod as any);
+                                            }
                                         }
                                         await setSubtractSavingsFromBudget(tempSubtractSavings);
                                         await setSubtractInvestmentFromBudget(tempSubtractInvestment);
@@ -417,6 +440,7 @@ const SummaryListItem = ({
     iconBgColor = '#334155',
     title,
     titleColor = '#FFFFFF',
+    subtitle,
     amount,
     amountColor,
     onDelete,
@@ -426,10 +450,12 @@ const SummaryListItem = ({
     iconBgColor?: string;
     title: string;
     titleColor?: string;
+    subtitle?: string;
     amount: string;
     amountColor: string;
     onDelete: () => void;
 }) => {
+    const { colors } = useTheme();
     return (
         <Pressable
             onLongPress={onDelete}
@@ -447,7 +473,8 @@ const SummaryListItem = ({
                     )}
                 </View>
                 <View>
-                    <Text className="font-bold" style={{ color: titleColor }}>{title}</Text>
+                    <Text className="font-bold text-[16px]" style={{ color: titleColor }}>{title}</Text>
+                    {subtitle && <Text className="text-[12px] mt-0.5" style={{ color: colors.muted }}>{subtitle}</Text>}
                 </View>
             </View>
             <Text className="font-bold text-lg" style={{ color: amountColor }}>{amount}</Text>

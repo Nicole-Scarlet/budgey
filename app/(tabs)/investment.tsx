@@ -18,7 +18,11 @@ export default function InvestmentScreen() {
         setInvestmentLimit,
         investmentLimitPeriod,
         setInvestmentLimitPeriod,
-        deleteTransaction
+        deleteTransaction,
+        activeGroupId,
+        profiles,
+        currentUserId,
+        groups
     } = useTransactions();
     const { colors, isDark } = useTheme();
 
@@ -254,7 +258,9 @@ export default function InvestmentScreen() {
                 <View className="px-6 pt-4 pb-2 flex-row justify-between items-center relative z-50">
                     <View>
                         <View className="flex-row items-center mb-1 z-50">
-                            <Text className="text-2xl font-bold font-['Inter_700Bold'] mr-3" style={{ color: colors.foreground }}>Investment</Text>
+                            <Text className="text-2xl font-bold font-['Inter_700Bold'] mr-3" style={{ color: colors.foreground }}>
+                                {activeGroupId ? `${groups.find(g => g.id === activeGroupId)?.name || 'Group'} Investments` : 'Investments'}
+                            </Text>
 
                             <View className="relative z-[100]">
                                 <Pressable
@@ -334,7 +340,9 @@ export default function InvestmentScreen() {
 
                                     <View className="flex-1 justify-center">
                                         <Text className="font-medium text-[16px] mb-1" style={{ color: colors.foreground }}>{item.title}</Text>
-                                        <Text className="text-[12px]" style={{ color: colors.muted }}>{item.date}</Text>
+                                        <Text className="text-[12px]" style={{ color: colors.muted }}>
+                                            {item.date}{activeGroupId && item.userId && item.userId !== currentUserId ? ` • by ${profiles.find(p => p.id === item.userId)?.full_name || 'Member'}` : ''}
+                                        </Text>
                                     </View>
 
                                     <Text className="font-bold text-[16px]" style={{ color: colors.foreground }}>

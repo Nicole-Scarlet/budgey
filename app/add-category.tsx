@@ -142,7 +142,7 @@ export default function AddCategoryScreen() {
 
     return (
         <View className="flex-1" style={{ backgroundColor: colors.background }}>
-            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
+            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} className="flex-1">
                 <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
                     <View className="flex-1">
                         {/* Header */}

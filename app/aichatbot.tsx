@@ -91,7 +91,7 @@ const AiChatbotPage = () => {
             <Stack.Screen options={{ headerShown: false }} />
             <KeyboardAvoidingView
                 className="flex-1"
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             >
             {/* Header */}
             <View 

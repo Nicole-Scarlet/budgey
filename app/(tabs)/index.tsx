@@ -12,6 +12,7 @@ const HomePage = () => {
   const router = useRouter();
   const {
     transactions,
+    getTransactionsByType,
     categories: globalCategories,
     getTotalBalance,
     getTotalByType,
@@ -36,6 +37,9 @@ const HomePage = () => {
     setSubtractDebtFromBudget,
     activeGroupId,
     groups,
+    profiles,
+    currentUserId,
+    updateGroup,
   } = useTransactions();
   const { profile } = useProfile();
   const { colors, isDark } = useTheme();
@@ -56,7 +60,7 @@ const HomePage = () => {
   const baseForPercentage = totalIncome > 0 ? totalIncome : 1;
 
   // Real data for Top 5 Expenses
-  const expenseTransactions = transactions.filter(t => t.type === 'expense');
+  const expenseTransactions = getTransactionsByType('expense');
   const sortedExpenses = [...expenseTransactions].sort((a, b) => b.amount - a.amount);
   const topExpenses = sortedExpenses.slice(0, 5);
 
@@ -407,8 +411,15 @@ const HomePage = () => {
                   onPress={async () => {
                     const parsedBudget = parseFloat(tempBudget.replace(/[^0-9.-]+/g, ''));
                     if (!isNaN(parsedBudget) && parsedBudget >= 0 && parsedBudget <= 1000000000) {
-                      await setBudget(parsedBudget);
-                      await setBudgetPeriod(tempPeriod);
+                      if (activeGroupId) {
+                        await updateGroup(activeGroupId, {
+                          budgetLimit: parsedBudget,
+                          budgetPeriod: tempPeriod
+                        });
+                      } else {
+                        await setBudget(parsedBudget);
+                        await setBudgetPeriod(tempPeriod);
+                      }
                       await setSubtractSavingsFromBudget(tempSubtractSavings);
                       await setSubtractInvestmentFromBudget(tempSubtractInvestment);
                       await setSubtractDebtFromBudget(tempSubtractDebt);

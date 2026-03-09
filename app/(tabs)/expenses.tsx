@@ -18,7 +18,11 @@ export default function ExpensesScreen() {
         setExpenseGoal,
         expenseGoalPeriod,
         setExpenseGoalPeriod,
-        deleteTransaction
+        deleteTransaction,
+        activeGroupId,
+        profiles,
+        currentUserId,
+        groups
     } = useTransactions();
     const [isCategoryMenuVisible, setIsCategoryMenuVisible] = useState(false);
     const [isTimeFilterVisible, setIsTimeFilterVisible] = useState(false);
@@ -255,7 +259,9 @@ export default function ExpensesScreen() {
                 <View className="px-6 pt-4 pb-2 flex-row justify-between items-center relative z-50">
                     <View>
                         <View className="flex-row items-center mb-1 z-50">
-                            <Text className="text-2xl font-bold font-['Inter_700Bold'] mr-3" style={{ color: colors.foreground }}>Expenses</Text>
+                            <Text className="text-2xl font-bold font-['Inter_700Bold'] mr-3" style={{ color: colors.foreground }}>
+                                {activeGroupId ? `${groups.find(g => g.id === activeGroupId)?.name || 'Group'} Expenses` : 'Expenses'}
+                            </Text>
 
                             <View className="relative z-[100]">
                                 <Pressable
@@ -336,7 +342,9 @@ export default function ExpensesScreen() {
                                     <View className="flex-1 justify-center">
                                         <Text className="font-medium text-[16px] mb-1" style={{ color: colors.foreground }}>{item.title}</Text>
                                         <View className="flex-row items-center">
-                                            <Text className="text-[12px]" style={{ color: colors.muted }}>{item.date}</Text>
+                                            <Text className="text-[12px]" style={{ color: colors.muted }}>
+                                                {item.date}{activeGroupId && item.userId && item.userId !== currentUserId ? ` • by ${profiles.find(p => p.id === item.userId)?.full_name || 'Member'}` : ''}
+                                            </Text>
                                             {item.image && (
                                                 <View className="ml-2 bg-blue-500/10 px-1.5 py-0.5 rounded-md flex-row items-center">
                                                     <MaterialCommunityIcons name="receipt" size={10} color="#3B82F6" />

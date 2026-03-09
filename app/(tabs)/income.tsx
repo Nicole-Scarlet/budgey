@@ -12,12 +12,16 @@ export default function IncomeScreen() {
     const {
         getTransactionsByType,
         getTotalByType,
-        incomeGoal,
+        incomeGoal: incomeGoalValue, // use value to avoid conflict if needed, but actually it's fine
         setIncomeGoal,
         incomeGoalPeriod,
         setIncomeGoalPeriod,
         categories: globalCategories,
-        deleteTransaction
+        deleteTransaction,
+        activeGroupId,
+        profiles,
+        currentUserId,
+        groups
     } = useTransactions();
     const [isCategoryMenuVisible, setIsCategoryMenuVisible] = useState(false);
     const [isTimeFilterVisible, setIsTimeFilterVisible] = useState(false);
@@ -136,13 +140,13 @@ export default function IncomeScreen() {
                     >
                         <Text className="text-[42px] font-bold tracking-tight" style={{ color: colors.foreground }}>₱{totalIncome.toLocaleString('en-US', { minimumFractionDigits: 2 })}</Text>
                         <Text className="text-lg font-medium mt-2 mb-2" style={{ color: colors.foreground + 'CC' }}>Overall Income</Text>
-                        {incomeGoal > 0 ? (
+                        {incomeGoalValue > 0 ? (
                             <Pressable 
-                                onPress={() => { setIsCategoryMenuVisible(false); setTempGoal(incomeGoal.toString()); setTempPeriod(incomeGoalPeriod); setIsGoalModalVisible(true); }} 
+                                onPress={() => { setIsCategoryMenuVisible(false); setTempGoal(incomeGoalValue.toString()); setTempPeriod(incomeGoalPeriod); setIsGoalModalVisible(true); }} 
                                 className="px-4 py-2 rounded-full border"
                                 style={{ backgroundColor: colors.background, borderColor: colors.border }}
                             >
-                                <Text className="text-[#4ADE80] font-medium text-sm">Goal: ₱{incomeGoal.toLocaleString('en-US', { minimumFractionDigits: 2 })} / {incomeGoalPeriod} (Edit)</Text>
+                                <Text className="text-[#4ADE80] font-medium text-sm">Goal: ₱{incomeGoalValue.toLocaleString('en-US', { minimumFractionDigits: 2 })} / {incomeGoalPeriod} (Edit)</Text>
                             </Pressable>
                         ) : (
                             <Pressable 
@@ -248,7 +252,9 @@ export default function IncomeScreen() {
                 <View className="px-6 pt-4 pb-2 flex-row justify-between items-center relative z-50">
                     <View>
                         <View className="flex-row items-center mb-1 z-50">
-                            <Text className="text-2xl font-bold font-['Inter_700Bold'] mr-3" style={{ color: colors.foreground }}>Income</Text>
+                            <Text className="text-2xl font-bold font-['Inter_700Bold'] mr-3" style={{ color: colors.foreground }}>
+                                {activeGroupId ? `${groups.find(g => g.id === activeGroupId)?.name || 'Group'} Income` : 'Income'}
+                            </Text>
 
                             <View className="relative z-[100]">
                                 <Pressable
@@ -328,7 +334,9 @@ export default function IncomeScreen() {
 
                                     <View className="flex-1 justify-center">
                                         <Text className="font-medium text-[16px] mb-1" style={{ color: colors.foreground }}>{item.title}</Text>
-                                        <Text className="text-[12px]" style={{ color: colors.muted }}>{item.date}</Text>
+                                        <Text className="text-[12px]" style={{ color: colors.muted }}>
+                                            {item.date}{activeGroupId && item.userId && item.userId !== currentUserId ? ` • by ${profiles.find(p => p.id === item.userId)?.full_name || 'Member'}` : ''}
+                                        </Text>
                                     </View>
 
                                     <Text className="font-bold text-[16px]" style={{ color: colors.foreground }}>

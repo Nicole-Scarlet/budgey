@@ -257,7 +257,7 @@ const WishlistScreen = () => {
         <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
             <Stack.Screen options={{ headerShown: false }} />
             {renderHeader()}
-            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
+            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} className="flex-1">
                 <ScrollView className="flex-1 px-8" showsVerticalScrollIndicator={false}>
                     {/* Visual Section */}
                     <View className="items-center mt-6">

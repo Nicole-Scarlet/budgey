@@ -89,7 +89,10 @@ export async function migrateDbIfNeeded(db: SQLiteDatabase) {
                     date TEXT NOT NULL,
                     FOREIGN KEY (debtId) REFERENCES debts(id) ON DELETE CASCADE
                 );
-
+                CREATE TABLE IF NOT EXISTS profile (
+                    id TEXT PRIMARY KEY,
+                    full_name TEXT,
+                    email TEXT,
                     avatarUrl TEXT
                 );
 
@@ -260,6 +263,10 @@ export async function migrateDbIfNeeded(db: SQLiteDatabase) {
                     } catch (e) {
                         console.log(`group_id column may already exist in ${table}`);
                     }
+                    // Fix null user_ids if they exist from a previous version without them
+                    try {
+                        await db.execAsync(`UPDATE ${table} SET user_id = 'local' WHERE user_id IS NULL;`);
+                    } catch (e) {}
                 }
             } catch (e) {
                 console.error("Migration error v14:", e);

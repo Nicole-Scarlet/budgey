@@ -14,6 +14,7 @@ export interface Transaction {
     categoryId?: string;
     image?: string;
     groupId?: string; // Added for groups
+    userId?: string;  // Added for group member attribution
 }
 
 export interface Group {
@@ -68,6 +69,7 @@ export interface Debt {
     payments: DebtPayment[];
     categoryId?: string;
     groupId?: string; // Added for groups
+    userId?: string;  // Added for attribution
 }
 
 // Define what our context will provide
@@ -131,6 +133,9 @@ interface TransactionContextData {
     joinGroup: (inviteCode: string) => Promise<void>;
     updateGroupMemberSharing: (groupId: string, sharing: Partial<Omit<GroupMember, 'groupId' | 'userId' | 'role'>>) => Promise<void>;
     leaveGroup: (groupId: string) => Promise<void>;
+    updateGroup: (groupId: string, updates: Partial<Group>) => Promise<void>;
+    profiles: any[];
+    currentUserId: string | null;
 }
 
 // Create the context with a default undefined value
@@ -169,6 +174,8 @@ export const TransactionProvider: React.FC<TransactionProviderProps> = ({ childr
     const [groups, setGroups] = useState<Group[]>([]);
     const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
     const [groupMembers, setGroupMembers] = useState<GroupMember[]>([]);
+    const [profiles, setProfiles] = useState<any[]>([]); // User IDs -> Names/Avatars
+    const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
 
 
@@ -194,7 +201,8 @@ export const TransactionProvider: React.FC<TransactionProviderProps> = ({ childr
     const loadData = async () => {
         try {
             const { data: { user } } = await supabase.auth.getUser();
-            const currentUserId = user?.id || 'local';
+            const currentId = user?.id || 'local';
+            setCurrentUserId(currentId);
 
             // 1. Load Groups (First, so we can use for transactions)
             const localGroupsRaw = await db.getAllAsync<any>('SELECT * FROM groups');
@@ -221,20 +229,26 @@ export const TransactionProvider: React.FC<TransactionProviderProps> = ({ childr
             }));
             setGroupMembers(mappedMembers);
 
-            // 2. Load transactions (Mine + Group shared)
+            // 2. Load transactions (Yours + Local + Group shared)
             const joinedGroupIds = mappedGroups.map(g => g.id);
-            let rawTxs: any[] = [];
+            const placeholders = joinedGroupIds.map(() => '?').join(',');
+            const queryParams = [currentId, 'local', ...joinedGroupIds];
             
-            if (user) {
-                const placeholders = joinedGroupIds.map(() => '?').join(',');
-                const query = joinedGroupIds.length > 0 
-                  ? `SELECT * FROM transactions WHERE user_id = ? OR group_id IN (${placeholders}) ORDER BY rowid DESC`
-                  : `SELECT * FROM transactions WHERE user_id = ? ORDER BY rowid DESC`;
-                const params = joinedGroupIds.length > 0 ? [currentUserId, ...joinedGroupIds] : [currentUserId];
-                rawTxs = await db.getAllAsync<any>(query, params);
-            } else {
-                rawTxs = await db.getAllAsync<any>('SELECT * FROM transactions WHERE user_id = ? ORDER BY rowid DESC', [currentUserId]);
-            }
+            const queryTxs = joinedGroupIds.length > 0 
+                ? `SELECT * FROM transactions WHERE (user_id = ? OR user_id = ?) OR group_id IN (${placeholders}) ORDER BY rowid DESC`
+                : `SELECT * FROM transactions WHERE (user_id = ? OR user_id = ?) ORDER BY rowid DESC`;
+            
+            const queryDebts = joinedGroupIds.length > 0 
+                ? `SELECT * FROM debts WHERE (user_id = ? OR user_id = ?) OR group_id IN (${placeholders})`
+                : `SELECT * FROM debts WHERE (user_id = ? OR user_id = ?)`;
+            
+            const queryPayments = joinedGroupIds.length > 0
+                ? `SELECT * FROM debt_payments WHERE (user_id = ? OR user_id = ?) OR debtId IN (SELECT id FROM debts WHERE group_id IN (${placeholders}))`
+                : `SELECT * FROM debt_payments WHERE (user_id = ? OR user_id = ?)`;
+
+            const rawTxs = await db.getAllAsync<any>(queryTxs, queryParams);
+            const debtRecords = await db.getAllAsync<any>(queryDebts, queryParams);
+            const allPayments = await db.getAllAsync<any>(queryPayments, queryParams);
             
             const txs = rawTxs.map(t => ({ 
                 ...t, 
@@ -260,26 +274,22 @@ export const TransactionProvider: React.FC<TransactionProviderProps> = ({ childr
                 order_index: c.order_index
             })));
 
-            // Load debts
-            const debtRecords = await db.getAllAsync<any>(
-                'SELECT * FROM debts WHERE user_id = ?',
-                [currentUserId]
-            );
-            const allPayments = await db.getAllAsync<any>(
-                'SELECT * FROM debt_payments WHERE user_id = ?',
-                [currentUserId]
-            );
-
             const mappedDebts: Debt[] = debtRecords.map(d => ({
                 ...d,
+                groupId: d.group_id,
+                userId: d.user_id,
                 payments: allPayments.filter(p => p.debtId === d.id)
             }));
             setDebts(mappedDebts);
 
+            // Load profiles (Local cache)
+            const localProfiles = await db.getAllAsync<any>('SELECT * FROM profile');
+            setProfiles(localProfiles);
+
             // Load settings
             const settings = await db.getAllAsync<{ key: string, value: string }>(
                 'SELECT * FROM settings WHERE user_id = ?',
-                [currentUserId]
+                [currentId]
             );
             settings.forEach(s => {
                 switch (s.key) {
@@ -341,25 +351,47 @@ export const TransactionProvider: React.FC<TransactionProviderProps> = ({ childr
                 }
             }
             
-            // 3. Sync Debts
-            const { data: remoteDebts } = await supabase.from('debts').select('*').eq('user_id', user.id);
-            if (remoteDebts) {
-                for (const debt of remoteDebts) {
+            // 3. Sync Debts (Mine + Groups)
+            const { data: personalDebts } = await supabase.from('debts').select('*').eq('user_id', user.id).is('group_id', null);
+            const { data: groupDebts } = await supabase.from('debts').select('*').not('group_id', 'is', null);
+            const allRemoteDebts = [...(personalDebts || []), ...(groupDebts || [])];
+            
+            if (allRemoteDebts.length > 0) {
+                for (const debt of allRemoteDebts) {
                     await db.runAsync(
-                        'INSERT OR REPLACE INTO debts (id, user_id, person, description, date, initialAmount, remainingAmount, direction, status, categoryId) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                        [debt.id, user.id, debt.person, debt.description, debt.date, debt.initialAmount, debt.remainingAmount, debt.direction, debt.status, debt.categoryId]
+                        'INSERT OR REPLACE INTO debts (id, user_id, person, description, date, initialAmount, remainingAmount, direction, status, categoryId, group_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                        [debt.id, debt.user_id, debt.person, debt.description, debt.date, debt.initialAmount, debt.remainingAmount, debt.direction, debt.status, debt.categoryId, debt.group_id]
                     );
                 }
             }
+            
+            // 4. Sync Debt Payments (Mine + Group Debt Payments)
+            // Fetch all payments for any debt I can see
+            const visibleDebtIds = allRemoteDebts.map(d => d.id);
+            if (visibleDebtIds.length > 0) {
+                const { data: remotePayments } = await supabase.from('debt_payments').select('*').in('debtId', visibleDebtIds);
+                if (remotePayments) {
+                    for (const p of remotePayments) {
+                        await db.runAsync(
+                            'INSERT OR REPLACE INTO debt_payments (id, user_id, debtId, amount, date) VALUES (?, ?, ?, ?, ?)',
+                            [p.id, p.user_id, p.debtId, p.amount, p.date]
+                        );
+                    }
+                }
+            }
 
-            // 4. Sync Debt Payments
-            const { data: remotePayments } = await supabase.from('debt_payments').select('*').eq('user_id', user.id);
-            if (remotePayments) {
-                for (const p of remotePayments) {
-                    await db.runAsync(
-                        'INSERT OR REPLACE INTO debt_payments (id, user_id, debtId, amount, date) VALUES (?, ?, ?, ?, ?)',
-                        [p.id, user.id, p.debtId, p.amount, p.date]
-                    );
+            // Sync Group Member Profiles
+            const localMembersForProfiles = await db.getAllAsync<any>('SELECT user_id FROM group_members');
+            const memberUserIds = localMembersForProfiles.map((m: any) => m.user_id);
+            if (memberUserIds.length > 0) {
+                const { data: remoteProfiles } = await supabase.from('profile').select('*').in('id', memberUserIds);
+                if (remoteProfiles) {
+                    for (const prof of remoteProfiles) {
+                        await db.runAsync(
+                            'INSERT OR REPLACE INTO profile (id, full_name, email, avatarUrl) VALUES (?, ?, ?, ?)',
+                            [prof.id, prof.full_name, prof.email, prof.avatarUrl]
+                        );
+                    }
                 }
             }
 
@@ -414,6 +446,19 @@ export const TransactionProvider: React.FC<TransactionProviderProps> = ({ childr
     useEffect(() => {
         loadData();
         syncData(); // Auto sync on load
+
+        // Auth state change listener
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+            console.log("Auth event in TransactionContext:", event);
+            if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'USER_UPDATED') {
+                loadData();
+                syncData();
+            }
+        });
+
+        return () => {
+            subscription.unsubscribe();
+        };
     }, [db]);
 
     const updateSetting = async (key: string, value: string) => {
@@ -437,15 +482,19 @@ export const TransactionProvider: React.FC<TransactionProviderProps> = ({ childr
 
     const addTransaction = async (transactionData: Omit<Transaction, 'id'>) => {
         const id = Date.now().toString() + Math.random().toString(36).substring(7);
-        const newTransaction: Transaction = { ...transactionData, id };
-        
         const { data: { user } } = await supabase.auth.getUser();
-        const currentUserId = user?.id || 'local';
+        const currentId = user?.id || 'local';
+        
+        const txWithGroup = {
+            ...transactionData,
+            groupId: transactionData.groupId || activeGroupId || undefined
+        };
+        const newTransaction: Transaction = { ...txWithGroup, id };
         
         // 1. Save locally (Instant UI update)
         await db.runAsync(
             'INSERT INTO transactions (id, user_id, type, amount, title, date, categoryId, image, group_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            [id, currentUserId, newTransaction.type, newTransaction.amount, newTransaction.title, newTransaction.date, newTransaction.categoryId || null, newTransaction.image || null, newTransaction.groupId || null]
+            [id, currentId, newTransaction.type, newTransaction.amount, newTransaction.title, newTransaction.date, newTransaction.categoryId || null, newTransaction.image || null, newTransaction.groupId || null]
         );
         setTransactions((prev) => [newTransaction, ...prev]);
 
@@ -532,17 +581,18 @@ export const TransactionProvider: React.FC<TransactionProviderProps> = ({ childr
     // Advanced Debt Methods
     const addDebt = async (debtData: Omit<Debt, 'id' | 'remainingAmount' | 'status' | 'payments'>) => {
         const id = Date.now().toString() + Math.random().toString(36).substring(7);
+        const { data: { user } } = await supabase.auth.getUser();
+        const currentUserId = user?.id || 'local';
+        
         const newDebt: Debt = {
             ...debtData,
             id,
             remainingAmount: debtData.initialAmount,
             status: 'pending',
             payments: [],
-            categoryId: debtData.categoryId
+            categoryId: debtData.categoryId,
+            userId: currentUserId
         };
-
-        const { data: { user } } = await supabase.auth.getUser();
-        const currentUserId = user?.id || 'local';
 
         // 1. Save locally
         await db.runAsync(
@@ -624,7 +674,8 @@ export const TransactionProvider: React.FC<TransactionProviderProps> = ({ childr
                 amount: amount,
                 type: 'expense',
                 date: date,
-                categoryId: 'debt_payment' // Optional: create a hidden category
+                categoryId: 'debt_payment', // Optional: create a hidden category
+                groupId: debt.groupId
             });
         } else { // Owes me
             await addTransaction({
@@ -632,7 +683,8 @@ export const TransactionProvider: React.FC<TransactionProviderProps> = ({ childr
                 amount: amount,
                 type: 'income',
                 date: date,
-                categoryId: 'debt_receipt'
+                categoryId: 'debt_receipt',
+                groupId: debt.groupId
             });
         }
     };
@@ -648,10 +700,26 @@ export const TransactionProvider: React.FC<TransactionProviderProps> = ({ childr
             if (!isMatch) return false;
 
             if (activeGroupId) {
-                // If a group is active, show only that group's transactions
-                return t.groupId === activeGroupId;
+                // 1. Always show if it belongs to the group explicitly
+                if (t.groupId === activeGroupId) return true;
+
+                // 2. Otherwise, check sharing toggles for personal transactions (no groupId)
+                if (!t.groupId) {
+                    const member = groupMembers.find(m => m.groupId === activeGroupId && m.userId === t.userId);
+                    if (!member) return false;
+
+                    switch (type) {
+                        case 'income': return member.shareIncome;
+                        case 'savings': return member.shareSavings;
+                        case 'investment': return member.shareInvestments;
+                        case 'debt': return member.shareDebts;
+                        case 'expense': return true; // Expenses are shared by default if pulled for group
+                        default: return false;
+                    }
+                }
+                return false;
             } else {
-                // Personal: show transactions with no groupId
+                // Personal View: show ONLY transactions with no groupId (my own personal space)
                 return !t.groupId;
             }
         });
@@ -663,9 +731,19 @@ export const TransactionProvider: React.FC<TransactionProviderProps> = ({ childr
 
     const getTotalBalance = () => {
         if (activeGroupId) {
-            // For groups, we show balance based on group expenses
+            // For groups, we show balance based on group income and expenses
+            const groupIncome = getTotalByType('income');
             const groupExpenses = getTotalByType('expense');
-            return -groupExpenses;
+            const groupSavings = getTotalByType('savings');
+            const groupInvestment = getTotalByType('investment');
+            const groupDebt = getTotalByType('debt');
+
+            let balance = groupIncome - groupExpenses;
+            if (subtractSavingsFromBudget) balance -= groupSavings;
+            if (subtractDebtFromBudget) balance -= groupDebt;
+            if (subtractInvestmentFromBudget) balance -= groupInvestment;
+            
+            return balance;
         }
 
         const totalExpense = getTotalByType('expense');
@@ -710,12 +788,20 @@ export const TransactionProvider: React.FC<TransactionProviderProps> = ({ childr
         );
 
         // 2. Sync to Supabase
-        await supabase.from('groups').insert([groupData]);
-        await supabase.from('group_members').insert([{
+        const { error: groupError } = await supabase.from('groups').insert([groupData]);
+        if (groupError) {
+            console.error("Create group Supabase error:", groupError);
+            // Still continue — group is saved locally
+        }
+        
+        const { error: memberError } = await supabase.from('group_members').insert([{
             group_id: id,
             role: 'owner',
             user_id: user.id
         }]);
+        if (memberError) {
+            console.error("Create group member Supabase error:", memberError);
+        }
 
         await loadData();
     };
@@ -724,33 +810,50 @@ export const TransactionProvider: React.FC<TransactionProviderProps> = ({ childr
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error("Must be logged in to join a group");
 
-        // Find group by invite code
-        const { data: group, error } = await supabase
-            .from('groups')
-            .select('*')
-            .eq('invite_code', inviteCode)
-            .single();
+        // Use the RPC function to bypass RLS and join the group atomically
+        const { data, error } = await supabase.rpc('join_group_by_invite', {
+            p_invite_code: inviteCode
+        });
 
-        if (error || !group) throw new Error("Group not found");
+        if (error) {
+            console.error("Join group RPC error:", error);
+            throw new Error("Failed to join group. Please try again.");
+        }
 
-        const memberData = {
-            group_id: group.id,
-            user_id: user.id,
-            role: 'member'
-        };
+        // The RPC returns a JSON object with either { error: "..." } or { success: true, group: {...} }
+        if (data?.error) {
+            throw new Error(data.error);
+        }
 
-        // 1. Save locally
+        if (!data?.success || !data?.group) {
+            throw new Error("Unexpected response from server.");
+        }
+
+        const group = data.group;
+
+        // Save the group and membership locally so it appears immediately
         await db.runAsync(
             'INSERT OR REPLACE INTO groups (id, name, description, invite_code, budget_limit, budget_period, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)',
-            [group.id, group.name, group.description, group.invite_code, group.budget_limit, group.budget_period, group.created_by]
+            [group.id, group.name, group.description, group.invite_code, group.budget_limit || 0, group.budget_period || 'Monthly', group.created_by]
         );
         await db.runAsync(
             'INSERT OR REPLACE INTO group_members (group_id, user_id, role) VALUES (?, ?, ?)',
             [group.id, user.id, 'member']
         );
 
-        // 2. Sync to Supabase
-        await supabase.from('group_members').insert([memberData]);
+        // Also sync the creator's profile so we can show their name
+        const { data: creatorProfile } = await supabase
+            .from('profiles')
+            .select('id, full_name, email, avatar_url')
+            .eq('id', group.created_by)
+            .single();
+
+        if (creatorProfile) {
+            await db.runAsync(
+                'INSERT OR REPLACE INTO profile (id, full_name, email, avatarUrl) VALUES (?, ?, ?, ?)',
+                [creatorProfile.id, creatorProfile.full_name, creatorProfile.email, creatorProfile.avatar_url]
+            );
+        }
 
         await loadData();
     };
@@ -797,6 +900,38 @@ export const TransactionProvider: React.FC<TransactionProviderProps> = ({ childr
         await supabase.from('group_members').delete().eq('group_id', groupId).eq('user_id', user.id);
 
         if (activeGroupId === groupId) setActiveGroupId(null);
+        await loadData();
+    };
+
+    const updateGroup = async (groupId: string, updates: Partial<Group>) => {
+        // Local update
+        if (updates.budgetLimit !== undefined || updates.budgetPeriod !== undefined) {
+             const setClauses: string[] = [];
+             const params: any[] = [];
+             if (updates.budgetLimit !== undefined) {
+                 setClauses.push('budget_limit = ?');
+                 params.push(updates.budgetLimit);
+             }
+             if (updates.budgetPeriod !== undefined) {
+                 setClauses.push('budget_period = ?');
+                 params.push(updates.budgetPeriod);
+             }
+             params.push(groupId);
+
+             await db.runAsync(`UPDATE groups SET ${setClauses.join(', ')} WHERE id = ?`, params);
+        }
+
+        // Supabase update
+        const supabaseUpdates: any = {};
+        if (updates.name) supabaseUpdates.name = updates.name;
+        if (updates.description) supabaseUpdates.description = updates.description;
+        if (updates.budgetLimit !== undefined) supabaseUpdates.budget_limit = updates.budgetLimit;
+        if (updates.budgetPeriod) supabaseUpdates.budget_period = updates.budgetPeriod;
+
+        if (Object.keys(supabaseUpdates).length > 0) {
+            await supabase.from('groups').update(supabaseUpdates).eq('id', groupId);
+        }
+
         await loadData();
     };
 
@@ -878,7 +1013,10 @@ export const TransactionProvider: React.FC<TransactionProviderProps> = ({ childr
                 createGroup,
                 joinGroup,
                 updateGroupMemberSharing,
-                leaveGroup
+                leaveGroup,
+                updateGroup,
+                profiles,
+                currentUserId
             }}
         >
             {children}

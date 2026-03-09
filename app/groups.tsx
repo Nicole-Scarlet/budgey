@@ -154,7 +154,7 @@ export default function GroupsScreen() {
                         <JoinedGroupItem 
                             key={group.id}
                             name={group.name}
-                            handle={`Group Code: ${group.inviteCode}`}
+                            handle={`Invite Code: ${group.inviteCode} (tap to copy)`}
                             isActive={activeGroupId === group.id}
                             onPress={() => setActiveGroupId(group.id)}
                             onSettingsPress={() => {
@@ -186,7 +186,7 @@ export default function GroupsScreen() {
       {/* Join Modal */}
       <Modal visible={isJoinModalVisible} transparent animationType="slide">
         <View className="flex-1 justify-end bg-black/50">
-            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
                 <View className="p-8 rounded-t-[40px]" style={{ backgroundColor: colors.card }}>
                     <Text className="text-2xl font-bold mb-2" style={{ color: colors.foreground }}>Join Group</Text>
                     <Text className="mb-6" style={{ color: colors.muted }}>Enter the 6-character invite code.</Text>
@@ -286,7 +286,7 @@ export default function GroupsScreen() {
       {/* Create Modal */}
       <Modal visible={isCreateModalVisible} transparent animationType="slide">
         <View className="flex-1 justify-end bg-black/50">
-            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
                 <View className="p-8 rounded-t-[40px]" style={{ backgroundColor: colors.card }}>
                     <Text className="text-2xl font-bold mb-2" style={{ color: colors.foreground }}>Create Group</Text>
                     <Text className="mb-6" style={{ color: colors.muted }}>Start a shared budget with friends.</Text>
@@ -402,7 +402,18 @@ function JoinedGroupItem({ name, handle, isActive, onPress, onLongPress, onSetti
                 </View>
                 <View className="flex-1">
                     <Text className="text-lg font-bold" style={{ color: colors.foreground }}>{name}</Text>
-                    <Text className="text-sm" style={{ color: colors.muted }} numberOfLines={1}>{handle}</Text>
+                    <TouchableOpacity onPress={() => {
+                        if (!isPersonal && handle) {
+                            const code = handle.replace('Invite Code: ', '').replace(' (tap to copy)', '');
+                            import('react-native').then(rn => {
+                                // @ts-ignore - Clipboard exists on RN
+                                if (rn.Clipboard) rn.Clipboard.setString(code);
+                            }).catch(() => {});
+                            Alert.alert('Copied!', `Invite code "${code}" copied to clipboard.`);
+                        }
+                    }} activeOpacity={isPersonal ? 1 : 0.5}>
+                        <Text className="text-sm" style={{ color: colors.muted }} numberOfLines={1}>{handle}</Text>
+                    </TouchableOpacity>
                 </View>
             </View>
             <View className="flex-row items-center gap-x-4">

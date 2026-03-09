@@ -120,10 +120,10 @@ const Register = () => {
     return (
         <SafeAreaView className="flex-1 bg-[#1E293B]">
             <KeyboardAvoidingView
-                behavior={Platform.OS === "ios" ? "padding" : "height"}
+                behavior={Platform.OS === "ios" ? "padding" : undefined}
                 className="flex-1"
             >
-                <ScrollView contentContainerStyle={{ flexGrow: 1, paddingBottom: 100 }} className="px-8 py-10">
+                <ScrollView contentContainerStyle={{ flexGrow: 1, paddingBottom: 100 }} className="px-8 py-10" keyboardShouldPersistTaps="handled">
                     {/* Header Section */}
                     <View className="mb-12">
                         <Text className="text-white text-5xl font-bold mb-4">

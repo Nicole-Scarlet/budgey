@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View, ActivityIndicator } from 'react-native';
+import { Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, TouchableOpacity, View, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useTransactions } from '../contexts/TransactionContext';
@@ -52,11 +52,15 @@ export default function AddIncomeScreen() {
     return (
         <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
             <KeyboardAvoidingView
-                behavior={Platform.OS === "ios" ? "padding" : "height"}
+                behavior={Platform.OS === "ios" ? "padding" : undefined}
                 className="flex-1"
             >
-                <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-                    <View className="flex-1 px-6">
+                <ScrollView
+                    className="flex-1 px-6"
+                    contentContainerStyle={{ flexGrow: 1 }}
+                    keyboardShouldPersistTaps="handled"
+                    showsVerticalScrollIndicator={false}
+                >
                         {/* Header */}
                         <View className="flex-row items-center justify-between pt-6 pb-6 mt-4">
                             <TouchableOpacity onPress={() => router.back()} className="p-2 -ml-2">
@@ -191,8 +195,7 @@ export default function AddIncomeScreen() {
                                 )}
                             </Pressable>
                         </View>
-                    </View>
-                </TouchableWithoutFeedback>
+                </ScrollView>
             </KeyboardAvoidingView>
 
             <CalendarModal 

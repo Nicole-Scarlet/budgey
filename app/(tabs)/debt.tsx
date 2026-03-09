@@ -17,7 +17,12 @@ export default function DebtScreen() {
         setDebtLimit,
         debtLimitPeriod,
         setDebtLimitPeriod,
-        deleteDebt
+        deleteDebt,
+        activeGroupId,
+        profiles,
+        currentUserId,
+        groupMembers,
+        groups
     } = useTransactions();
     const { colors, isDark } = useTheme();
 
@@ -29,7 +34,7 @@ export default function DebtScreen() {
     const [isPaymentSaving, setIsPaymentSaving] = useState(false);
     
     const [tempLimit, setTempLimit] = useState('');
-    const [tempPeriod, setTempPeriod] = useState<'Daily' | 'Weekly' | 'Monthly'>(debtLimitPeriod || 'Monthly');
+    const [tempPeriod, setTempPeriod] = useState<any>(debtLimitPeriod || 'Monthly');
     const [headerHeight, setHeaderHeight] = useState(360);
     const [containerHeight, setContainerHeight] = useState(800);
     const [activeFilter, setActiveFilter] = useState<'All' | 'Pending' | 'Paid'>('All');
@@ -60,6 +65,24 @@ export default function DebtScreen() {
     ];
 
     const filteredDebts = debts.filter(d => {
+        // 1. Group View
+        if (activeGroupId) {
+            // Explicitly in the group
+            if (d.groupId === activeGroupId) {
+                // Direction filter logic can be added here if needed, but usually we show all group debts
+            } else if (!d.groupId) {
+                // Personal debt that is shared
+                const member = groupMembers.find(m => m.groupId === activeGroupId && m.userId === d.userId);
+                if (!member || !member.shareDebts) return false;
+            } else {
+                return false; // Belongs to a different group
+            }
+        } else {
+            // 2. Personal View
+            if (d.groupId) return false; // Hide group debts in personal view
+        }
+
+        // 3. Status filter
         if (activeFilter === 'All') return true;
         if (activeFilter === 'Pending') return d.status === 'pending';
         if (activeFilter === 'Paid') return d.status === 'paid';
@@ -69,7 +92,7 @@ export default function DebtScreen() {
     const totalDebtAmount = filteredDebts.reduce((acc, curr) => acc + curr.remainingAmount, 0);
 
     const firstSnap = Math.max(220, bottom + 180);
-    const secondSnap = Math.max(firstSnap + 50, containerHeight - headerHeight - 20);
+    const secondSnap = containerHeight > 0 ? Math.max(firstSnap + 50, containerHeight - headerHeight - 20) : '80%';
     const snapPoints = useMemo(() => [firstSnap, secondSnap], [firstSnap, secondSnap, containerHeight, headerHeight]);
 
     const formatCurrency = (amount: number) => {
@@ -247,13 +270,15 @@ export default function DebtScreen() {
                 index={1}
                 snapPoints={snapPoints}
                 onChange={handleSheetChanges}
-                backgroundStyle={{ backgroundColor: colors.background, borderRadius: 24, shadowColor: '#000', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.25, shadowRadius: 10, elevation: 10 }}
+                backgroundStyle={{ backgroundColor: colors.background, borderRadius: 24 }}
                 handleIndicatorStyle={{ backgroundColor: colors.muted, width: 40 }}
             >
                 <View className="px-6 pt-4 pb-2 flex-row justify-between items-center relative z-50">
                     <View>
                         <View className="flex-row items-center mb-1 z-50">
-                            <Text className="text-2xl font-bold font-['Inter_700Bold'] mr-3" style={{ color: colors.foreground }}>Debt Summary</Text>
+                            <Text className="text-2xl font-bold mr-3" style={{ color: colors.foreground }}>
+                                {activeGroupId ? `${groups.find(g => g.id === activeGroupId)?.name || 'Group'} Debts` : 'Debt Summary'}
+                            </Text>
                             
                             <View className="relative z-[100]">
                                 <Pressable
@@ -267,7 +292,7 @@ export default function DebtScreen() {
 
                                 {isStatusFilterVisible && (
                                     <View
-                                        className="absolute shadow-2xl rounded-xl border overflow-hidden w-32 z-[100] left-0 top-[115%]"
+                                        className="absolute shadow-2xl rounded-xl border overflow-hidden w-32 z-[100] left-0 top-12"
                                         style={{ backgroundColor: colors.card, borderColor: colors.border }}
                                     >
                                         {['All', 'Pending', 'Paid'].map((filter) => (
@@ -339,7 +364,7 @@ export default function DebtScreen() {
                                     <View className="flex-1">
                                         <Text className="text-base font-bold" style={{ color: colors.foreground }}>{item.person}</Text>
                                         <Text className="text-xs" style={{ color: colors.muted }}>
-                                            {globalCategories.find(c => c.id === item.categoryId)?.name || item.description}
+                                            {globalCategories.find(c => c.id === item.categoryId)?.name || item.description}{activeGroupId && item.userId && item.userId !== currentUserId ? ` • by ${profiles.find(p => p.id === item.userId)?.full_name || 'Member'}` : ''}
                                         </Text>
                                     </View>
                                 </View>

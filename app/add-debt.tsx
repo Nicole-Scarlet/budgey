@@ -90,7 +90,7 @@ export default function AddDebtScreen() {
       />
       <SafeAreaView className="flex-1" edges={["bottom"]}>
         <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
           className="flex-1"
         >
           <View className="flex-1 px-7">
