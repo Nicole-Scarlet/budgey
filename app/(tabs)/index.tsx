@@ -184,7 +184,13 @@ const HomePage = () => {
                       <View className="h-10 justify-center">
                         <Text className="font-bold text-center" style={{ color: colors.foreground }} numberOfLines={2}>{item.title}</Text>
                       </View>
-                      <Text className="mt-auto font-medium text-[13px] pb-1" style={{ color: colors.muted }}>₱{item.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</Text>
+                      <Text className="mt-auto font-medium text-[13px]" style={{ color: colors.muted }}>₱{item.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</Text>
+                      {activeGroupId && (
+                        <Text className="text-[10px] pb-1" style={{ color: colors.muted }}>
+                          {item.userId === currentUserId ? 'You' : (profiles.find(p => p.id === item.userId)?.firstName || 'Member')}
+                        </Text>
+                      )}
+                      {!activeGroupId && <View className="pb-1" />}
                     </View>
                   </View>
                 );

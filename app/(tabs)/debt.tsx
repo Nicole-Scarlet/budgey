@@ -364,7 +364,7 @@ export default function DebtScreen() {
                                     <View className="flex-1">
                                         <Text className="text-base font-bold" style={{ color: colors.foreground }}>{item.person}</Text>
                                         <Text className="text-xs" style={{ color: colors.muted }}>
-                                            {globalCategories.find(c => c.id === item.categoryId)?.name || item.description}{activeGroupId && item.userId && item.userId !== currentUserId ? ` • by ${profiles.find(p => p.id === item.userId)?.firstName || 'Member'}` : ''}
+                                            {globalCategories.find(c => c.id === item.categoryId)?.name || item.description}{activeGroupId ? ` • ${item.userId === currentUserId ? 'You' : (profiles.find(p => p.id === item.userId)?.firstName || 'Member')}` : ''}
                                         </Text>
                                     </View>
                                 </View>

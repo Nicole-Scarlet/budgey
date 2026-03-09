@@ -384,8 +384,12 @@ export const TransactionProvider: React.FC<TransactionProviderProps> = ({ childr
             
             // 2. Sync Transactions (Mine + Groups)
             try {
-                const { data: personalTxs } = await supabase.from('transactions').select('*').eq('user_id', user.id).is('group_id', null);
-                const { data: groupTxs } = await supabase.from('transactions').select('*').not('group_id', 'is', null);
+                const { data: personalTxs, error: personalTxErr } = await supabase.from('transactions').select('*').eq('user_id', user.id).is('group_id', null);
+                const { data: groupTxs, error: groupTxErr } = await supabase.from('transactions').select('*').not('group_id', 'is', null);
+                console.log(`🔍 SYNC TX: personal=${personalTxs?.length ?? 0} (err: ${personalTxErr?.message ?? 'none'}), group=${groupTxs?.length ?? 0} (err: ${groupTxErr?.message ?? 'none'})`);
+                if (groupTxs && groupTxs.length > 0) {
+                    console.log('🔍 GROUP TX OWNERS:', groupTxs.map(t => `${t.title}|uid:${t.user_id?.substring(0,8)}|gid:${t.group_id?.substring(0,8)}`));
+                }
                 const allRemoteTxs = [...(personalTxs || []), ...(groupTxs || [])];
                 
                 if (allRemoteTxs.length > 0) {
@@ -394,7 +398,7 @@ export const TransactionProvider: React.FC<TransactionProviderProps> = ({ childr
                             const normalizedDate = normalizeDate(tx.date);
                             await db.runAsync(
                                 'INSERT OR REPLACE INTO transactions (id, user_id, type, amount, title, date, categoryId, image, group_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                                [tx.id, tx.user_id, tx.type ?? 'expense', tx.amount ?? 0, tx.title ?? '', normalizedDate ?? '', tx.categoryId ?? null, tx.image ?? null, tx.group_id ?? null]
+                                [tx.id, tx.user_id, tx.type ?? 'expense', tx.amount ?? 0, tx.title ?? '', normalizedDate ?? '', tx.categoryid ?? tx.categoryId ?? null, tx.image ?? null, tx.group_id ?? null]
                             );
                         } catch (e) { console.error("Transaction Sync Error:", e, tx); }
                     }
@@ -413,7 +417,7 @@ export const TransactionProvider: React.FC<TransactionProviderProps> = ({ childr
                         try {
                             await db.runAsync(
                                 'INSERT OR REPLACE INTO debts (id, user_id, person, description, date, initialAmount, remainingAmount, direction, status, categoryId, group_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                                [debt.id, debt.user_id, debt.person ?? 'Unknown', debt.description ?? '', debt.date ?? '', debt.initialAmount ?? 0, debt.remainingAmount ?? 0, debt.direction ?? '', debt.status ?? 'pending', debt.categoryId ?? null, debt.group_id ?? null]
+                                [debt.id, debt.user_id, debt.person ?? 'Unknown', debt.description ?? '', debt.date ?? '', debt.initialamount ?? debt.initialAmount ?? 0, debt.remainingamount ?? debt.remainingAmount ?? 0, debt.direction ?? '', debt.status ?? 'pending', debt.categoryid ?? debt.categoryId ?? null, debt.group_id ?? null]
                             );
                         } catch (e) { console.error("Debt Sync Error:", e, debt); }
                     }
@@ -424,13 +428,13 @@ export const TransactionProvider: React.FC<TransactionProviderProps> = ({ childr
             try {
                 const visibleDebtIds = allRemoteDebts.map(d => d.id);
                 if (visibleDebtIds.length > 0) {
-                    const { data: remotePayments } = await supabase.from('debt_payments').select('*').in('debtId', visibleDebtIds);
+                    const { data: remotePayments } = await supabase.from('debt_payments').select('*').in('debtid', visibleDebtIds);
                     if (remotePayments) {
                         for (const p of remotePayments) {
                             try {
                                 await db.runAsync(
                                     'INSERT OR REPLACE INTO debt_payments (id, user_id, debtId, amount, date) VALUES (?, ?, ?, ?, ?)',
-                                    [p.id, p.user_id, p.debtId, p.amount ?? 0, p.date ?? '']
+                                    [p.id, p.user_id, p.debtid ?? p.debtId, p.amount ?? 0, p.date ?? '']
                                 );
                             } catch (e) { console.error("Debt Payment Sync Error:", e, p); }
                         }
@@ -471,6 +475,35 @@ export const TransactionProvider: React.FC<TransactionProviderProps> = ({ childr
                     }
                 }
             } catch (e) { console.error("Settings Fetch Error:", e); }
+
+            // 6. Re-push local transactions that failed to sync to Supabase
+            try {
+                const localTxs = await db.getAllAsync<any>('SELECT * FROM transactions WHERE user_id = ?', [user.id]);
+                const { data: remoteTxs } = await supabase.from('transactions').select('id').eq('user_id', user.id);
+                const remoteIds = new Set((remoteTxs || []).map((t: any) => t.id));
+                const missingTxs = localTxs.filter((t: any) => !remoteIds.has(t.id));
+                
+                if (missingTxs.length > 0) {
+                    console.log(`📤 RE-PUSHING ${missingTxs.length} local transactions to Supabase`);
+                    for (const tx of missingTxs) {
+                        try {
+                            const { error } = await supabase.from('transactions').insert([{
+                                id: tx.id,
+                                user_id: tx.user_id,
+                                type: tx.type,
+                                amount: tx.amount,
+                                title: tx.title,
+                                date: tx.date,
+                                categoryid: tx.categoryId || null,
+                                image: tx.image || null,
+                                group_id: tx.group_id || null
+                            }]);
+                            if (error) console.error(`❌ Re-push failed for "${tx.title}":`, error.message);
+                            else console.log(`✅ Re-pushed: "${tx.title}"`);
+                        } catch (e) { console.error("Re-push error:", e); }
+                    }
+                }
+            } catch (e) { console.error("Re-push Error:", e); }
 
             // Reload local state
             await loadData();
@@ -582,7 +615,7 @@ export const TransactionProvider: React.FC<TransactionProviderProps> = ({ childr
                 amount: newTransaction.amount,
                 title: newTransaction.title,
                 date: newTransaction.date,
-                categoryId: newTransaction.categoryId || null,
+                categoryid: newTransaction.categoryId || null,
                 image: newTransaction.image || null,
                 group_id: newTransaction.groupId || null
             }]);
@@ -724,11 +757,11 @@ export const TransactionProvider: React.FC<TransactionProviderProps> = ({ childr
                 person: newDebt.person,
                 description: newDebt.description,
                 date: newDebt.date,
-                initialAmount: newDebt.initialAmount,
-                remainingAmount: newDebt.remainingAmount,
+                initialamount: newDebt.initialAmount,
+                remainingamount: newDebt.remainingAmount,
                 direction: newDebt.direction,
                 status: newDebt.status,
-                categoryId: newDebt.categoryId || null,
+                categoryid: newDebt.categoryId || null,
                 group_id: newDebt.groupId || null
             }]);
         }
@@ -770,13 +803,13 @@ export const TransactionProvider: React.FC<TransactionProviderProps> = ({ childr
             await supabase.from('debt_payments').insert([{
                 id: paymentId,
                 user_id: user.id,
-                debtId,
+                debtid: debtId,
                 amount,
                 date
             }]);
 
             await supabase.from('debts').update({
-                remainingAmount: newRemaining,
+                remainingamount: newRemaining,
                 status: newStatus
             }).eq('id', debtId).eq('user_id', user.id);
         }
@@ -815,24 +848,8 @@ export const TransactionProvider: React.FC<TransactionProviderProps> = ({ childr
             if (!isMatch) return false;
 
             if (activeGroupId) {
-                // 1. Always show if it belongs to the group explicitly
-                if (t.groupId === activeGroupId) return true;
-
-                // 2. Otherwise, check sharing toggles for personal transactions (no groupId)
-                if (!t.groupId) {
-                    const member = groupMembers.find(m => m.groupId === activeGroupId && m.userId === t.userId);
-                    if (!member) return false;
-
-                    switch (type) {
-                        case 'income': return member.shareIncome;
-                        case 'savings': return member.shareSavings;
-                        case 'investment': return member.shareInvestments;
-                        case 'debt': return member.shareDebts;
-                        case 'expense': return true; // Expenses are shared by default if pulled for group
-                        default: return false;
-                    }
-                }
-                return false;
+                // Group View: only show transactions explicitly created in this group
+                return t.groupId === activeGroupId;
             } else {
                 // Personal View: show ONLY transactions with no groupId (my own personal space)
                 return !t.groupId;
