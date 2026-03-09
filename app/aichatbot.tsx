@@ -89,6 +89,10 @@ const AiChatbotPage = () => {
     return (
         <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }} edges={["top", "bottom"]}>
             <Stack.Screen options={{ headerShown: false }} />
+            <KeyboardAvoidingView
+                className="flex-1"
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            >
             {/* Header */}
             <View 
                 className="px-6 pt-2 pb-4 flex-row justify-between items-center border-b"
@@ -142,11 +146,7 @@ const AiChatbotPage = () => {
             </ScrollView>
 
             {/* Input Bar */}
-            <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-            >
-                <View className="px-6 pb-2 pt-2 mb-6">
+            <View className="px-6 pb-2 pt-2 mb-6">
                     <View 
                         style={{ backgroundColor: colors.card, borderColor: colors.border + '33' }}
                         className="rounded-full px-6 py-3 flex-row items-center border"

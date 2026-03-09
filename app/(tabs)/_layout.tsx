@@ -13,12 +13,12 @@ const CustomTabBarBackground = ({ colors }: { colors: any }) => {
   const borderWidth = (circleSize - notchSize) / 2;
 
   return (
-    <View style={{ position: 'absolute', bottom: 0, width: width, height: 107, flexDirection: 'row' }}>
+    <View style={{ position: 'absolute', bottom: 0, width: width, height: 127, flexDirection: 'row' }}>
       {/* Left solid part */}
       <View style={{ flex: 1, backgroundColor: colors.secondaryCard || colors.card }} />
 
       {/* Center notch part */}
-      <View style={{ width: notchSize, height: 107, overflow: 'hidden' }}>
+      <View style={{ width: notchSize, height: 127, overflow: 'hidden' }}>
         <View style={{
           position: 'absolute',
           top: -(circleSize / 2) + 20, // Push the cutout circle down so the top half clears properly
@@ -50,8 +50,8 @@ export default function TabLayout() {
         tabBarStyle: {
           backgroundColor: 'transparent',
           borderTopWidth: 0,
-          height: 107,
-          paddingBottom: 20,
+          height: 127,
+          paddingBottom: 40,
           paddingTop: 20,
           position: 'absolute',
           elevation: 0,
@@ -144,12 +144,6 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="settings-outline" size={size} color={color} />
           ),
-        }}
-      />
-      <Tabs.Screen
-        name="intro"
-        options={{
-          href: null,
         }}
       />
       <Tabs.Screen

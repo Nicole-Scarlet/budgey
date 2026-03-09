@@ -252,31 +252,23 @@ export default function DebtScreen() {
             >
                 <View className="px-6 pt-4 pb-2 flex-row justify-between items-center relative z-50">
                     <View>
-                        <View className="flex-row items-center mb-1">
+                        <View className="flex-row items-center mb-1 z-50">
                             <Text className="text-2xl font-bold font-['Inter_700Bold'] mr-3" style={{ color: colors.foreground }}>Debt Summary</Text>
-                            <Pressable
-                                onPress={() => setIsStatusFilterVisible(!isStatusFilterVisible)}
-                                className="px-3 py-1.5 rounded-full flex-row items-center border"
-                                style={{ backgroundColor: colors.card, borderColor: colors.border }}
-                            >
-                                <Text className="text-xs font-bold mr-1" style={{ color: colors.muted }}>{activeFilter}</Text>
-                                <Feather name="chevron-down" size={14} color={colors.muted} />
-                            </Pressable>
-
-                            <Modal
-                                visible={isStatusFilterVisible}
-                                transparent
-                                animationType="none"
-                                statusBarTranslucent={true}
-                                onRequestClose={() => setIsStatusFilterVisible(false)}
-                            >
+                            
+                            <View className="relative z-[100]">
                                 <Pressable
-                                    className="flex-1 bg-black/40"
-                                    onPress={() => setIsStatusFilterVisible(false)}
+                                    onPress={() => setIsStatusFilterVisible(!isStatusFilterVisible)}
+                                    className="px-3 py-1.5 rounded-full flex-row items-center border"
+                                    style={{ backgroundColor: colors.card, borderColor: colors.border }}
                                 >
+                                    <Text className="text-xs font-bold mr-1" style={{ color: colors.muted }}>{activeFilter}</Text>
+                                    <Feather name="chevron-down" size={14} color={colors.muted} />
+                                </Pressable>
+
+                                {isStatusFilterVisible && (
                                     <View
-                                        className="absolute shadow-2xl rounded-xl border overflow-hidden w-32 z-50"
-                                        style={{ top: SCREEN_HEIGHT - firstSnap - 10, left: 160, backgroundColor: colors.card, borderColor: colors.border }}
+                                        className="absolute shadow-2xl rounded-xl border overflow-hidden w-32 z-[100] left-0 top-[115%]"
+                                        style={{ backgroundColor: colors.card, borderColor: colors.border }}
                                     >
                                         {['All', 'Pending', 'Paid'].map((filter) => (
                                             <Pressable
@@ -293,8 +285,8 @@ export default function DebtScreen() {
                                             </Pressable>
                                         ))}
                                     </View>
-                                </Pressable>
-                            </Modal>
+                                )}
+                            </View>
                         </View>
                         <Text className="text-sm" style={{ color: colors.muted }}>Active trackings: {filteredDebts.length}</Text>
                     </View>

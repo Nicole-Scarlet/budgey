@@ -88,10 +88,10 @@ export default function AddExpenseScreen() {
 
                         {/* Details Section */}
                         <ScrollView showsVerticalScrollIndicator={false}>
-                            <Text className="text-[20px] font-bold mt-4 mb-4" style={{ color: colors.foreground }}>Details</Text>
+                            <Text className="text-xl font-bold mb-4" style={{ color: colors.foreground }}>Details</Text>
                             <View 
                                 style={{ backgroundColor: colors.card, borderColor: colors.border + '33' }}
-                                className="rounded-[16px] flex-row items-center px-4 h-[60px] mb-4 border"
+                                className="rounded-[16px] flex-row items-center px-4 h-16 mb-4 border"
                             >
                                 <TextInput
                                     className="flex-1 text-[16px]"
@@ -106,7 +106,7 @@ export default function AddExpenseScreen() {
 
                             <View 
                                 style={{ backgroundColor: colors.card, borderColor: parseFloat(amount) > 1000000000 ? '#ef4444' + '80' : colors.border + '33' }}
-                                className={`rounded-[16px] flex-row items-center px-4 h-[60px] border`}
+                                className={`rounded-[16px] flex-row items-center px-4 h-16 mb-6 border`}
                             >
                                 <TextInput
                                     className="flex-1 text-[16px]"
@@ -126,7 +126,7 @@ export default function AddExpenseScreen() {
                             {!passedCategoryId && (
                                 <>
                                     <Text className="text-[20px] font-bold mb-6" style={{ color: colors.foreground }}>Categories</Text>
-                                    <View className="flex-row flex-wrap" style={{ gap: 20 }}>
+                                    <View className="flex-row flex-wrap" style={{ gap: 16 }}>
                                         {categories.filter(c => c.type.toLowerCase() === activeModule.toLowerCase()).length > 0 ? (
                                             categories.filter(c => c.type.toLowerCase() === activeModule.toLowerCase()).map(cat => {
                                                 const isSelected = selectedCategoryId === cat.id;
@@ -135,7 +135,7 @@ export default function AddExpenseScreen() {
                                                         key={cat.id}
                                                         onPress={() => setSelectedCategoryId(cat.id)}
                                                         className="items-center"
-                                                        style={{ width: '20%' }}
+                                                        style={{ width: '21%' }}
                                                     >
                                                         <View
                                                             className="w-16 h-16 rounded-full items-center justify-center mb-2 shadow-sm transform"
@@ -158,14 +158,35 @@ export default function AddExpenseScreen() {
                                                 );
                                             })
                                         ) : (
-                                            <Text className="text-[14px]" style={{ color: colors.muted }}>No categories found. Please add a category first.</Text>
+                                            <TouchableOpacity
+                                                onPress={() => router.push(`/add-category?module=${activeModule}` as any)}
+                                                className="items-center mt-2"
+                                                style={{ width: '21%' }}
+                                            >
+                                                <View
+                                                    className="w-16 h-16 rounded-full items-center justify-center mb-2 shadow-sm transform border-2 border-dashed"
+                                                    style={{
+                                                        backgroundColor: colors.card,
+                                                        borderColor: colors.muted + '80',
+                                                    }}
+                                                >
+                                                    <Feather name="plus" size={28} color={colors.muted} />
+                                                </View>
+                                                <Text
+                                                    className={`text-[13px] text-center`}
+                                                    style={{ color: colors.muted }}
+                                                    numberOfLines={1}
+                                                >
+                                                    Add
+                                                </Text>
+                                            </TouchableOpacity>
                                         )}
                                     </View>
                                 </>
                             )}
 
                             {/* Date Picker Trigger */}
-                            <View className="flex-row items-center justify-between mt-8 px-2 mb-4">
+                            <View className="flex-row items-center justify-between mt-4 px-2 mb-4">
                                 <Text className="text-lg font-bold" style={{ color: colors.foreground }}>
                                     Created: {formatDate(date)}
                                 </Text>
@@ -179,16 +200,32 @@ export default function AddExpenseScreen() {
 
                         {/* Limit Warning */}
                         {isLimitExceeded && (
-                            <View className="mb-4 mx-2 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl flex-row items-center">
-                                <Feather name="alert-circle" size={20} color="#F87171" />
+                            <View 
+                                className={`mb-4 mx-2 p-4 border rounded-2xl flex-row items-center ${
+                                    activeModule === 'Income' || activeModule === 'Savings' || activeModule === 'Investment' 
+                                        ? 'bg-green-500/10 border-green-500/20' 
+                                        : 'bg-red-500/10 border-red-500/20'
+                                }`}
+                            >
+                                <Feather 
+                                    name={activeModule === 'Income' || activeModule === 'Savings' || activeModule === 'Investment' ? "check-circle" : "alert-circle"} 
+                                    size={20} 
+                                    color={activeModule === 'Income' || activeModule === 'Savings' || activeModule === 'Investment' ? "#4ADE80" : "#F87171"} 
+                                />
                                 <View className="ml-3 flex-1">
-                                    <Text className="text-[#F87171] font-bold text-sm">
-                                        {activeModule === 'Income' || activeModule === 'Savings'
+                                    <Text 
+                                        className="font-bold text-sm"
+                                        style={{ color: activeModule === 'Income' || activeModule === 'Savings' || activeModule === 'Investment' ? "#4ADE80" : "#F87171" }}
+                                    >
+                                        {activeModule === 'Income' || activeModule === 'Savings' || activeModule === 'Investment'
                                             ? `${activeModule} Goal Reached`
                                             : `${activeModule} Limit Exceeded`}
                                     </Text>
-                                    <Text className="text-[#F87171]/80 text-[12px]">
-                                        {activeModule === 'Income' || activeModule === 'Savings'
+                                    <Text 
+                                        className="text-[12px]"
+                                        style={{ color: activeModule === 'Income' || activeModule === 'Savings' || activeModule === 'Investment' ? "rgba(74, 222, 128, 0.8)" : "rgba(248, 113, 113, 0.8)" }}
+                                    >
+                                        {activeModule === 'Income' || activeModule === 'Savings' || activeModule === 'Investment'
                                             ? `Target: ₱${categoryLimit.toLocaleString()}. Current: ₱${spentInValue.toLocaleString()}.`
                                             : `Limit: ₱${categoryLimit.toLocaleString()}. Spent: ₱${spentInValue.toLocaleString()}.`}
                                     </Text>

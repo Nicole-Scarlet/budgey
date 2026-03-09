@@ -71,9 +71,7 @@ const HomePage = () => {
               <Ionicons name="heart-outline" size={24} color={colors.foreground} />
             </Pressable>
             <Pressable
-              onPress={() => {
-                // TODO: Open multi-user menu
-              }}
+              onPress={() => router.push('/groups' as any)}
               className="p-2 rounded-full border"
               style={{ backgroundColor: colors.card, borderColor: colors.border }}
             >
@@ -456,7 +454,7 @@ const SummaryItem = ({
       if (percentage >= 75) return '#4ADE80'; // Green
       if (percentage >= 50) return '#EAB308'; // Yellow
       if (percentage >= 25) return '#F97316'; // Orange
-      return '#EF4444'; // Red
+      return '#4ADE80'; // Red
     } else {
       return '#4ADE80'; // Default Green (Income/Investment)
     }

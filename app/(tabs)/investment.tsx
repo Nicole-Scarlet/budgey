@@ -48,10 +48,18 @@ export default function InvestmentScreen() {
     const isTransactionInActiveFilter = (transactionDateRaw: string) => {
         if (activeFilter === 'All') return true;
         const now = new Date();
-        const transactionDate = new Date(transactionDateRaw);
+        
+        // Robustly parse "Month Day, Year"
+        const parts = transactionDateRaw.replace(',', '').split(' ');
+        const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+        const monthIndex = monthNames.indexOf(parts[0]);
+        const day = parseInt(parts[1]);
+        const year = parseInt(parts[2]);
+        const transactionDate = new Date(year, monthIndex, day);
+
         switch (activeFilter) {
             case 'Daily':
-                return transactionDate.toDateString() === now.toDateString();
+                return transactionDateRaw === now.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
             case 'Weekly':
                 const diffTime = Math.abs(now.getTime() - transactionDate.getTime());
                 const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -245,32 +253,23 @@ export default function InvestmentScreen() {
             >
                 <View className="px-6 pt-4 pb-2 flex-row justify-between items-center relative z-50">
                     <View>
-                        <View className="flex-row items-center mb-1">
+                        <View className="flex-row items-center mb-1 z-50">
                             <Text className="text-2xl font-bold font-['Inter_700Bold'] mr-3" style={{ color: colors.foreground }}>Investment</Text>
 
-                            <Pressable
-                                onPress={() => setIsTimeFilterVisible(!isTimeFilterVisible)}
-                                className="px-3 py-1.5 rounded-full flex-row items-center border"
-                                style={{ backgroundColor: colors.card, borderColor: colors.border }}
-                            >
-                                <Text className="text-xs font-bold mr-1" style={{ color: colors.muted }}>{activeFilter}</Text>
-                                <Feather name="chevron-down" size={14} color={colors.muted} />
-                            </Pressable>
-
-                            <Modal
-                                visible={isTimeFilterVisible}
-                                transparent
-                                animationType="none"
-                                statusBarTranslucent={true}
-                                onRequestClose={() => setIsTimeFilterVisible(false)}
-                            >
+                            <View className="relative z-[100]">
                                 <Pressable
-                                    className="flex-1 bg-black/40"
-                                    onPress={() => setIsTimeFilterVisible(false)}
+                                    onPress={() => setIsTimeFilterVisible(!isTimeFilterVisible)}
+                                    className="px-3 py-1.5 rounded-full flex-row items-center border"
+                                    style={{ backgroundColor: colors.card, borderColor: colors.border }}
                                 >
+                                    <Text className="text-xs font-bold mr-1" style={{ color: colors.muted }}>{activeFilter}</Text>
+                                    <Feather name="chevron-down" size={14} color={colors.muted} />
+                                </Pressable>
+
+                                {isTimeFilterVisible && (
                                     <View
-                                        className="absolute shadow-2xl rounded-xl border overflow-hidden w-32 z-50"
-                                        style={{ top: height - firstSnap - 10, left: 135, backgroundColor: colors.card, borderColor: colors.border }}
+                                        className="absolute shadow-2xl rounded-xl border overflow-hidden w-32 z-[100] left-0 top-[115%]"
+                                        style={{ backgroundColor: colors.card, borderColor: colors.border }}
                                     >
                                         {['All', 'Daily', 'Weekly', 'Monthly'].map((filter) => (
                                             <Pressable
@@ -287,8 +286,8 @@ export default function InvestmentScreen() {
                                             </Pressable>
                                         ))}
                                     </View>
-                                </Pressable>
-                            </Modal>
+                                )}
+                            </View>
                         </View>
                         <Text className="text-sm" style={{ color: colors.muted }}>{new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</Text>
                     </View>

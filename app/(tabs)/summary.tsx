@@ -44,7 +44,14 @@ export default function SummaryScreen() {
         const todayStr = now.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 
         return trans.filter(t => {
-            const tDate = new Date(t.date);
+            // Robustly parse "Month Day, Year"
+            const parts = t.date.replace(',', '').split(' ');
+            const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+            const monthIndex = monthNames.indexOf(parts[0]);
+            const day = parseInt(parts[1]);
+            const year = parseInt(parts[2]);
+            const tDate = new Date(year, monthIndex, day);
+
             if (filterPeriod === 'Daily') {
                 return t.date === todayStr;
             } else if (filterPeriod === 'Weekly') {
@@ -73,7 +80,7 @@ export default function SummaryScreen() {
             {/* Header with Set Budget */}
             <View style={{ backgroundColor: colors.card }} className="rounded-b-[40px] pt-8 pb-10 shadow-lg">
                 <View className="items-center mt-2 relative">
-                    <Text className="text-[42px] font-bold tracking-tight" style={{ color: colors.foreground }}>₱{budget.toLocaleString('en-US', { minimumFractionDigits: 2 })}</Text>
+                    <Text className="text-[42px] font-bold tracking-tight" style={{ color: colors.foreground }}>₱{(budget + getTotalBalance()).toLocaleString('en-US', { minimumFractionDigits: 2 })}</Text>
                     <Text className="text-lg font-medium mt-2" style={{ color: colors.foreground + 'CC' }}>Overall Budget</Text>
 
                     <Pressable
@@ -147,28 +154,20 @@ export default function SummaryScreen() {
                         <Text className="text-xl font-bold" style={{ color: colors.foreground }}>
                             Summary {filterPeriod !== 'All' ? `(${filterPeriod})` : ''}
                         </Text>
-                        <Pressable
-                            onPress={() => setIsFilterModalVisible(!isFilterModalVisible)}
-                            className={`p-2 -mr-2 rounded-lg`}
-                            style={isFilterModalVisible ? { backgroundColor: colors.card } : {}}
-                        >
-                            <Ionicons name="funnel" size={20} color={isFilterModalVisible ? "#38BDF8" : colors.foreground} />
-                        </Pressable>
-
-                        <Modal
-                            visible={isFilterModalVisible}
-                            transparent
-                            animationType="none"
-                            statusBarTranslucent={true}
-                            onRequestClose={() => setIsFilterModalVisible(false)}
-                        >
+                        
+                        <View className="relative z-[100]">
                             <Pressable
-                                className="flex-1 bg-black/40"
-                                onPress={() => setIsFilterModalVisible(false)}
+                                onPress={() => setIsFilterModalVisible(!isFilterModalVisible)}
+                                className={`p-2 rounded-lg`}
+                                style={isFilterModalVisible ? { backgroundColor: colors.card } : {}}
                             >
+                                <Ionicons name="funnel" size={20} color={isFilterModalVisible ? "#38BDF8" : colors.foreground} />
+                            </Pressable>
+
+                            {isFilterModalVisible && (
                                 <View 
                                     style={{ backgroundColor: colors.background, borderColor: colors.card }}
-                                    className="absolute top-64 right-6 rounded-xl border shadow-2xl z-[100] w-40 overflow-hidden"
+                                    className="absolute top-[115%] right-0 rounded-xl border shadow-2xl z-[100] w-40 overflow-hidden"
                                 >
                                     {['All', 'Daily', 'Weekly', 'Monthly'].map((period, index) => (
                                         <Pressable
@@ -190,8 +189,8 @@ export default function SummaryScreen() {
                                         </Pressable>
                                     ))}
                                 </View>
-                            </Pressable>
-                        </Modal>
+                            )}
+                        </View>
                     </View>
 
                     <ScrollView

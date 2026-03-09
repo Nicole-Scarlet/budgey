@@ -74,6 +74,8 @@ export default function RootLayout() {
                     <Stack.Screen name="add-savings" options={{ headerShown: false }} />
                     <Stack.Screen name="add-category" options={{ headerShown: false }} />
                     <Stack.Screen name="add-expense" options={{ headerShown: false }} />
+                    <Stack.Screen name="add-investment" options={{ headerShown: false }} />
+                    <Stack.Screen name="add-debt" options={{ headerShown: false }} />
                     <Stack.Screen name="add-budget" options={{ headerShown: false }} />
                     <Stack.Screen name="category-list" options={{ headerShown: false }} />
                     <Stack.Screen name="wishlist" options={{ headerShown: false }} />

@@ -566,13 +566,12 @@ export const TransactionProvider: React.FC<TransactionProviderProps> = ({ childr
     };
 
     const getTotalBalance = () => {
-        const totalIncome = getTotalByType('income');
         const totalExpense = getTotalByType('expense');
         const totalSavings = getTotalByType('savings');
-        const totalDebtTxs = getTotalByType('debt'); // Original debt transactions
+        const totalDebtTxs = getTotalByType('debt');
         const totalInvestment = getTotalByType('investment');
 
-        let balance = totalIncome - totalExpense;
+        let balance = -totalExpense;
         if (subtractSavingsFromBudget) balance -= totalSavings;
         if (subtractDebtFromBudget) balance -= totalDebtTxs;
         if (subtractInvestmentFromBudget) balance -= totalInvestment;

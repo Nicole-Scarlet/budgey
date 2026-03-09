@@ -11,10 +11,11 @@ import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 
 export default function AddIncomeScreen() {
     const router = useRouter();
-    const { addTransaction } = useTransactions();
+    const { addTransaction, categories } = useTransactions();
     const { colors, isDark } = useTheme();
     const [amount, setAmount] = useState('');
     const [itemName, setItemName] = useState('');
+    const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
     const [date, setDate] = useState(new Date());
     const [calendarVisible, setCalendarVisible] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
@@ -36,6 +37,7 @@ export default function AddIncomeScreen() {
                 await addTransaction({
                     type: 'income',
                     amount: amountValue,
+                    categoryId: selectedCategoryId || 'uncategorized',
                     title: itemName.trim() || 'Income',
                     date: formatDate(date)
                 });
@@ -52,25 +54,26 @@ export default function AddIncomeScreen() {
                 behavior={Platform.OS === "ios" ? "padding" : "height"}
                 className="flex-1"
             >
-                {/* Header */}
-                <View className="px-6 py-4 flex-row items-center border-b" style={{ borderBottomColor: colors.card + '80' }}>
-                    <Pressable onPress={() => router.back()} className="p-2 -ml-2 rounded-full absolute left-4 z-10">
-                        <Ionicons name="arrow-back" size={28} color={colors.foreground} />
-                    </Pressable>
-                    <View className="flex-1 items-center">
-                        <Text className="text-[22px] font-bold" style={{ color: colors.foreground }}>Income</Text>
-                    </View>
-                </View>
-
                 <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-                    <View className="flex-1">
-                        <ScrollView className="flex-1 px-8 pt-8 pb-10" showsVerticalScrollIndicator={false}>
-                            <Text className="text-2xl font-bold mb-6" style={{ color: colors.foreground }}>Details</Text>
+                    <View className="flex-1 px-6">
+                        {/* Header */}
+                        <View className="flex-row items-center justify-between pt-6 pb-6 mt-4">
+                            <TouchableOpacity onPress={() => router.back()} className="p-2 -ml-2">
+                                <Feather name="arrow-left" size={24} color={colors.foreground} />
+                            </TouchableOpacity>
+                            <Text className="text-[18px] font-bold tracking-widest uppercase" style={{ color: colors.foreground }}>
+                                ADD INCOME
+                            </Text>
+                            <View className="p-2 -mr-2 w-[40px]" />
+                        </View>
 
-                            <View className="space-y-6">
+                        <ScrollView showsVerticalScrollIndicator={false}>
+                            <Text className="text-xl font-bold mb-4" style={{ color: colors.foreground }}>Details</Text>
+
+                            <View>
                                 <View 
                                     style={{ backgroundColor: colors.card + '80', borderColor: colors.border + '33' }}
-                                    className="h-16 rounded-2xl px-5 flex-row items-center border"
+                                    className="h-16 rounded-2xl px-5 flex-row items-center border mb-4"
                                 >
                                     <TextInput
                                         className="text-lg flex-1"
@@ -84,7 +87,7 @@ export default function AddIncomeScreen() {
 
                                 <View 
                                     style={{ backgroundColor: colors.card + '80', borderColor: colors.border + '33' }}
-                                    className="h-16 rounded-2xl px-5 flex-row items-center border mt-6"
+                                    className="h-16 rounded-2xl px-5 flex-row items-center border mb-6"
                                 >
                                     <TextInput
                                         className="text-lg flex-1"
@@ -100,7 +103,67 @@ export default function AddIncomeScreen() {
                                     <Text className="text-red-400 text-xs mt-2 ml-1">Maximum limit is ₱1,000,000,000</Text>
                                 )}
 
-                                <View className="flex-row items-center justify-between mt-8 px-2 mb-4">
+                                <Text className="text-[20px] font-bold mt-2 mb-4" style={{ color: colors.foreground }}>
+                                    Categories
+                                </Text>
+                                <View className="flex-row flex-wrap" style={{ gap: 16 }}>
+                                    {categories.filter(c => c.type.toLowerCase() === 'income').length > 0 ? (
+                                        categories.filter(c => c.type.toLowerCase() === 'income').map(cat => {
+                                            const isSelected = selectedCategoryId === cat.id;
+                                            return (
+                                                <TouchableOpacity
+                                                    key={cat.id}
+                                                    onPress={() => setSelectedCategoryId(cat.id)}
+                                                    className="items-center"
+                                                    style={{ width: '21%' }}
+                                                >
+                                                    <View
+                                                        className="w-16 h-16 rounded-full items-center justify-center mb-2 shadow-sm transform"
+                                                        style={{
+                                                            backgroundColor: colors.card,
+                                                            borderWidth: isSelected ? 2 : 0,
+                                                            borderColor: isSelected ? cat.color : 'transparent',
+                                                        }}
+                                                    >
+                                                        <Feather name={cat.icon as any} size={24} color={cat.color} />
+                                                    </View>
+                                                    <Text
+                                                        className={`text-[13px] text-center ${isSelected ? 'font-bold' : ''}`}
+                                                        style={{ color: isSelected ? colors.foreground : colors.muted }}
+                                                        numberOfLines={1}
+                                                    >
+                                                        {cat.name}
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            );
+                                        })
+                                    ) : (
+                                        <TouchableOpacity
+                                            onPress={() => router.push(`/add-category?module=Income` as any)}
+                                            className="items-center mt-2"
+                                            style={{ width: '21%' }}
+                                        >
+                                            <View
+                                                className="w-16 h-16 rounded-full items-center justify-center mb-2 shadow-sm transform border-2 border-dashed"
+                                                style={{
+                                                    backgroundColor: colors.card,
+                                                    borderColor: colors.muted + '80',
+                                                }}
+                                            >
+                                                <Feather name="plus" size={28} color={colors.muted} />
+                                            </View>
+                                            <Text
+                                                className={`text-[13px] text-center`}
+                                                style={{ color: colors.muted }}
+                                                numberOfLines={1}
+                                            >
+                                                Add
+                                            </Text>
+                                        </TouchableOpacity>
+                                    )}
+                                </View>
+
+                                <View className="flex-row items-center justify-between mt-4 px-2 mb-4">
                                     <Text className="text-lg font-bold" style={{ color: colors.foreground }}>
                                         Created: {formatDate(date)}
                                     </Text>

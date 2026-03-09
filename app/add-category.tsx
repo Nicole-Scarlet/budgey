@@ -235,7 +235,7 @@ export default function AddCategoryScreen() {
                                     <TextInput
                                         className={`text-[18px] py-2`}
                                         style={{ color: isGoalMissing ? colors.muted : colors.foreground }}
-                                        placeholder={isGoalMissing ? `Set overall ${activeModule} limit first` : "Enter Limit Amount"}
+                                        placeholder={isGoalMissing ? `Set overall ${activeModule} ${activeModule === 'Investment' || activeModule === 'Income' || activeModule === 'Savings' ? 'goal' : 'limit'} first` : `Enter ${activeModule === 'Investment' || activeModule === 'Income' || activeModule === 'Savings' ? 'Goal' : 'Limit'} Amount`}
                                         placeholderTextColor={isGoalMissing ? "#7F1D1D" : colors.muted}
                                         keyboardType="numeric"
                                         value={limit}
@@ -251,7 +251,7 @@ export default function AddCategoryScreen() {
                                     <View className="flex-row items-center bg-red-500/10 p-3 rounded-xl mt-3 border border-red-500/20">
                                         <Feather name="info" size={16} color="#EF4444" />
                                         <Text className="text-[#EF4444] text-[13px] ml-2 font-medium">
-                                            Please set an overall {activeModule} {activeModule === 'Income' || activeModule === 'Savings' ? 'Goal' : 'Limit'} in the {activeModule} tab before setting category limits.
+                                            Please set an overall {activeModule} {activeModule === 'Investment' || activeModule === 'Income' || activeModule === 'Savings' ? 'Goal' : 'Limit'} in the {activeModule} tab before setting category limits.
                                         </Text>
                                     </View>
                                 )}
@@ -270,22 +270,28 @@ export default function AddCategoryScreen() {
                                     const projectedTotal = currentTypeLimitsTotal + parsedLimit;
 
                                     if (projectedTotal > currentModuleGoal) {
-                                        return (
-                                            <View className="flex-row items-start bg-[#EAB308]/20 p-4 rounded-xl mt-4 border border-[#EAB308]/30">
-                                                <Feather name="alert-triangle" size={20} color="#EAB308" />
-                                                <View className="ml-3 flex-1 gap-y-1">
-                                                    <Text className="text-[#EAB308] text-sm font-bold">
-                                                        Limit Exceeded Warning
-                                                    </Text>
-                                                    <Text className="text-[#EAB308]/90 text-sm leading-5">
-                                                        Adding ₱{parsedLimit.toLocaleString('en-US', { minimumFractionDigits: 2 })} brings your combined {activeModule} categories total to ₱{projectedTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}.
-                                                    </Text>
-                                                    <Text className="text-[#EAB308]/90 text-sm leading-5">
-                                                        This exceeds your overall {activeModule} {activeModule === 'Income' || activeModule === 'Savings' ? 'goal' : 'limit'} of ₱{currentModuleGoal.toLocaleString('en-US', { minimumFractionDigits: 2 })}.
-                                                    </Text>
+                                            const isPositiveGoal = activeModule === 'Investment' || activeModule === 'Income' || activeModule === 'Savings';
+                                            const colorStr = isPositiveGoal ? "#4ADE80" : "#F87171";
+                                            const bgClass = isPositiveGoal ? "bg-green-500/10 border-green-500/30" : "bg-red-500/10 border-red-500/30";
+                                            const iconName = isPositiveGoal ? "check-circle" : "alert-triangle";
+                                            const titleText = isPositiveGoal ? "Goal Exceeded Warning" : "Limit Exceeded Warning";
+                                            
+                                            return (
+                                                <View className={`flex-row items-start p-4 rounded-xl mt-4 border ${bgClass}`}>
+                                                    <Feather name={iconName} size={20} color={colorStr} />
+                                                    <View className="ml-3 flex-1 gap-y-1">
+                                                        <Text className="text-sm font-bold" style={{ color: colorStr }}>
+                                                            {titleText}
+                                                        </Text>
+                                                        <Text className="text-sm leading-5" style={{ color: `${colorStr}E6` }}>
+                                                            Adding ₱{parsedLimit.toLocaleString('en-US', { minimumFractionDigits: 2 })} brings your combined {activeModule} categories total to ₱{projectedTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}.
+                                                        </Text>
+                                                        <Text className="text-sm leading-5" style={{ color: `${colorStr}E6` }}>
+                                                            This exceeds your overall {activeModule} {isPositiveGoal ? 'goal' : 'limit'} of ₱{currentModuleGoal.toLocaleString('en-US', { minimumFractionDigits: 2 })}.
+                                                        </Text>
+                                                    </View>
                                                 </View>
-                                            </View>
-                                        );
+                                            );
                                     }
                                     return null;
                                 })()}

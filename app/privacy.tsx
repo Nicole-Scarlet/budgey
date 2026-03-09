@@ -12,10 +12,75 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "../contexts/ThemeContext";
+import { useTransactions } from "../contexts/TransactionContext";
+import { useWishlist } from "../contexts/WishlistContext";
+import { supabase } from "../services/supabase";
 
 const PrivacyPage = () => {
     const router = useRouter();
     const { colors, isDark } = useTheme();
+    const { clearData } = useTransactions();
+    const { clearWishlistState } = useWishlist();
+
+    const handleDeleteAccount = async () => {
+        Alert.alert(
+            "Delete Account",
+            "Are you sure you want to permanently delete your account? All your data will be erased and your email will be freed for a new account. This cannot be undone.",
+            [
+                { text: "Cancel", style: "cancel" },
+                {
+                    text: "Delete",
+                    style: "destructive",
+                    onPress: () => {
+                        // Second confirmation
+                        Alert.alert(
+                            "Final Confirmation",
+                            "This is irreversible. Delete your account now?",
+                            [
+                                { text: "Cancel", style: "cancel" },
+                                {
+                                    text: "Delete Forever",
+                                    style: "destructive",
+                                    onPress: async () => {
+                                        try {
+                                            const { data: { user } } = await supabase.auth.getUser();
+                                            if (!user) return;
+
+                                            // 1. Delete all user data from Supabase tables
+                                            await supabase.from('transactions').delete().eq('user_id', user.id);
+                                            await supabase.from('categories').delete().eq('user_id', user.id);
+                                            await supabase.from('debt_payments').delete().eq('user_id', user.id);
+                                            await supabase.from('debts').delete().eq('user_id', user.id);
+                                            await supabase.from('settings').delete().eq('user_id', user.id);
+                                            await supabase.from('wishlist').delete().eq('user_id', user.id);
+                                            await supabase.from('profile').delete().eq('user_id', user.id);
+
+                                            // 2. Delete the auth user via server-side RPC (frees the email)
+                                            const { error: rpcError } = await supabase.rpc('delete_own_account');
+                                            if (rpcError) {
+                                                console.error("RPC delete error:", rpcError.message);
+                                            }
+
+                                            // 3. Clear local state
+                                            await clearData();
+                                            clearWishlistState();
+
+                                            // 4. Sign out and go to intro
+                                            await supabase.auth.signOut();
+                                            router.replace("/intro");
+                                        } catch (error) {
+                                            console.error("Error deleting account:", error);
+                                            Alert.alert("Error", "Failed to delete account. Please try again.");
+                                        }
+                                    }
+                                }
+                            ]
+                        );
+                    }
+                }
+            ]
+        );
+    };
 
     // --- State Management ---
     // Security & Session
@@ -156,6 +221,16 @@ const PrivacyPage = () => {
                         description="View or remove registered devices"
                         actionLabel="Manage"
                         onPress={() => Alert.alert("Device Management", "Managing 2 active devices...")}
+                    />
+
+                    <View className="h-[1px] mx-2" style={{ backgroundColor: colors.border + '1A' }} />
+
+                    <SettingAction
+                        label="Account Deletion"
+                        description="Permanently delete your account and data"
+                        actionLabel="Delete Account"
+                        destructive
+                        onPress={handleDeleteAccount}
                     />
                 </View>
 
